@@ -18,8 +18,13 @@ venv/
 *.xml.real
 real-invoices/
 
-# Claude Code local settings
-.claude/settings.local.json
+# Claude Code working files — local to the dev machine, deliberately not committed
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+PLAN.md
+STATE.md
+docs/REFERENCE.md
 
 # IDEs
 .idea/

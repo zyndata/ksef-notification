@@ -1,6 +1,6 @@
 # Architecture
 
-> **Stub — filled in during phase 1** (see [PLAN.md](../PLAN.md)). Prerequisite:
+> **Stub — filled in during phase 1.** Prerequisite:
 > [KSEF_API.md](KSEF_API.md) completed in phase 0. Every design decision here must respect two
 > hard constraints: **no invoice content is written to disk**, and **the request budget in
 > KSEF_API.md is never exceeded**. Runtime dependencies are limited to what Home Assistant core

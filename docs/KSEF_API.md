@@ -1,10 +1,10 @@
 # KSeF API
 
-> **Stub — filled in during phase 0** (see [PLAN.md](../PLAN.md)). What is written below is what
-> KSeF Manager's client *does*, read from its code on 2026-10-01. **None of it is verified.**
-> Phase 0 replaces every "unverified" with a finding checked against the official documentation,
-> dated and linked. See [REFERENCE.md](REFERENCE.md) for where the reference code is already
-> known to be unreliable.
+> **Stub — filled in during phase 0.** What is written below is what KSeF Manager's client
+> *does*, read from its code on 2026-10-01. **None of it is verified.** Phase 0 replaces every
+> "unverified" with a finding checked against the official documentation, dated and linked. The
+> reference code is already known to be unreliable in places — its base URLs disagree with each
+> other, and its limits exist only as comments.
 
 ## Environments
 

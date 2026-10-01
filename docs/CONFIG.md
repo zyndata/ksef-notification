@@ -1,8 +1,7 @@
 # Configuration
 
-> **Stub — option semantics are finalized in phase 1, implemented in phase 5** (see
-> [PLAN.md](../PLAN.md)). What is below is the intent fixed at bootstrap; types, defaults and
-> bounds are decided in phase 1.
+> **Stub — option semantics are finalized in phase 1, implemented in phase 5.** What is below is
+> the intent fixed at bootstrap; types, defaults and bounds are decided in phase 1.
 
 ## Config flow wizard
 
