@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Machine/user secrets — never committed (see CLAUDE.md, secrets discipline)
+.env
+
+# Real invoices must never reach the repository, not even by accident
+*.xml.real
+real-invoices/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# IDEs
+.idea/
+.vscode/
+
+# OS cruft
+Thumbs.db
+.DS_Store
