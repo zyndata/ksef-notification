@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Quiet hours.** In the *Behaviour* step (and later under *Configure*) you can set a daily
+  window, for example 22:00 to 06:00, in which KSeF is not asked at all and so no notification
+  arrives. Invoices that came in meanwhile are notified by the first check when the window ends.
+  Off by default; *Check now* still works during quiet hours.
+
 ## [1.0.0] - 2026-10-06
 
 The first release. KSeF Notification watches KSeF, the Polish national e-invoice system, for new

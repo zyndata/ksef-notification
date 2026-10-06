@@ -23,8 +23,10 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -34,6 +36,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
+    TimeSelector,
 )
 
 from .client import AuthErrorReason, KsefAuthError, KsefClient, KsefError, KsefRateLimitError
@@ -44,10 +47,15 @@ from .const import (
     CONF_FIELDS,
     CONF_NIP,
     CONF_NOTIFY_SERVICE,
+    CONF_QUIET_END,
+    CONF_QUIET_HOURS,
+    CONF_QUIET_START,
     CONF_TOKEN,
     DEFAULT_CHECK_INTERVAL_MIN,
     DEFAULT_ENVIRONMENT,
     DEFAULT_FIELDS,
+    DEFAULT_QUIET_END,
+    DEFAULT_QUIET_START,
     DOMAIN,
     ENV_PROD,
     ENVIRONMENTS,
@@ -55,6 +63,7 @@ from .const import (
     MIN_CHECK_INTERVAL_MIN,
     NOTIFY_DOMAIN,
 )
+from .core import quiet_hours
 from .core.fields import FIELD_KEYS, ordered
 
 _LOGGER = logging.getLogger(__name__)
@@ -171,8 +180,16 @@ def _behaviour_schema() -> vol.Schema:
                     unit_of_measurement=UnitOfTime.MINUTES,
                 )
             ),
+            vol.Required(CONF_QUIET_HOURS, default=False): BooleanSelector(),
+            vol.Required(CONF_QUIET_START, default=DEFAULT_QUIET_START): TimeSelector(),
+            vol.Required(CONF_QUIET_END, default=DEFAULT_QUIET_END): TimeSelector(),
         }
     )
+
+
+def _behaviour_form_values(options: Mapping[str, Any]) -> dict[str, Any]:
+    """Stored behaviour options as the form shows them: quiet hours are on when stored."""
+    return {**options, CONF_QUIET_HOURS: CONF_QUIET_START in options}
 
 
 def _validate_notification(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
@@ -187,13 +204,25 @@ def _validate_notification(user_input: dict[str, Any]) -> tuple[dict[str, Any], 
     return {CONF_NOTIFY_SERVICE: service, CONF_FIELDS: list(fields)}, errors
 
 
+def _hhmm(raw: str) -> str:
+    """A time the selector accepted, as `HH:MM`: the time picker shows no seconds."""
+    return cv.time(raw).strftime("%H:%M")
+
+
 def _validate_behaviour(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
     """The behaviour options as stored, and the form errors."""
     errors: dict[str, str] = {}
     interval = user_input[CONF_CHECK_INTERVAL_MIN]
     if interval != int(interval) or int(interval) % CHECK_INTERVAL_STEP_MIN:
         errors[CONF_CHECK_INTERVAL_MIN] = "invalid_interval"
-    return {CONF_CHECK_INTERVAL_MIN: int(interval)}, errors
+    options: dict[str, Any] = {CONF_CHECK_INTERVAL_MIN: int(interval)}
+    if user_input[CONF_QUIET_HOURS]:
+        start = _hhmm(user_input[CONF_QUIET_START])
+        end = _hhmm(user_input[CONF_QUIET_END])
+        if quiet_hours.parse(start, end) is None:
+            errors[CONF_QUIET_END] = "invalid_quiet_hours"
+        options |= {CONF_QUIET_START: start, CONF_QUIET_END: end}
+    return options, errors
 
 
 class KsefNotificationConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -270,7 +299,7 @@ class KsefNotificationConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_behaviour(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 3: how often to check; creates the entry."""
+        """Step 3: how often to check, and quiet hours; creates the entry."""
         errors: dict[str, str] = {}
         schema = _behaviour_schema()
         if user_input is not None:
@@ -351,8 +380,13 @@ class KsefNotificationOptionsFlow(OptionsFlowWithReload):
             options, errors = _validate_behaviour(user_input)
             if not errors:
                 self._options.update(options)
-                return self.async_create_entry(data={**self.config_entry.options, **self._options})
+                kept = {
+                    key: value
+                    for key, value in self.config_entry.options.items()
+                    if key not in (CONF_QUIET_START, CONF_QUIET_END)
+                }
+                return self.async_create_entry(data={**kept, **self._options})
         schema = self.add_suggested_values_to_schema(
-            _behaviour_schema(), user_input or self.config_entry.options
+            _behaviour_schema(), user_input or _behaviour_form_values(self.config_entry.options)
         )
         return self.async_show_form(step_id="behaviour", data_schema=schema, errors=errors)

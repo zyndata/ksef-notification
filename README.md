@@ -73,6 +73,8 @@ company and invoice data in them are invented.
 - **Kind to KSeF's limits** — checks every 15 minutes by default (the shortest interval the
   official guidance allows), with a throttled *Check now* button, and backs off when KSeF asks
   it to.
+- **Quiet hours** — optionally, no checks and no notifications at night (or any daily window
+  you set); what arrived meanwhile comes in the morning.
 - **Fits into automations** — a `ksef_notification_invoice` event for every new invoice, a
   sensor for the most recent invoice, a diagnostic sensor that tells "no new invoices" apart
   from "KSeF has not answered", and a switch to pause notifications.
@@ -138,7 +140,11 @@ entries for more companies, or for the same company in the test environment.
   show. The four preselected fields (seller, invoice number, gross amount, due date) make a
   short notification; the due date, payment form, bank account and items come from the invoice
   itself and cost one extra download per new invoice.
-- **Behaviour** — how often to check: 15 minutes (the default and the minimum) up to a day.
+- **Behaviour** — how often to check: 15 minutes (the default and the minimum) up to a day;
+  and, optionally, **quiet hours** (for example 22:00 to 06:00, in Home Assistant's time zone)
+  during which KSeF is not asked at all, so no notification arrives. Invoices that came in
+  meanwhile are notified by the first check when the quiet hours end, combined into one
+  notification if there are four or more. *Check now* still works during quiet hours.
 
 Adding the integration costs two logins and two invoice queries (the token check and the first
 check); after that each check is one query, plus one download per new invoice when a field
@@ -208,7 +214,8 @@ selected is not in it, and a selected field the invoice does not have is `null`.
   *Diagnostic*): its `outcome` attribute says whether the last check was `ok`, KSeF was
   `unavailable`, asked to slow down (`rate_limited`), refused the token (`auth_failed`) or
   blocked the account (`blocked`), and `next_check` when the next one runs. Remember that the
-  first check after setup notifies nothing by design.
+  first check after setup notifies nothing by design, and that with quiet hours set no check
+  runs inside them.
 - **A repair issue** appears under **Settings → System → Repairs** when the phone's notify
   service is missing or a push failed, and when KSeF blocks access for the company.
 - **Check now refuses** within 10 minutes of the previous check — KSeF's limits are shared with

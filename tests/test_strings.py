@@ -108,7 +108,12 @@ def test_the_source_scan_found_something() -> None:
     """Guard against an AST walk that silently matches nothing."""
     assert {"user", "notification", "behaviour", "reauth_confirm"} == CONFIG_STEPS
     assert {"notification", "behaviour"} == OPTIONS_STEPS
-    assert {"no_fields", "invalid_notify_service", "invalid_interval"} == SHARED_ERRORS
+    assert {
+        "no_fields",
+        "invalid_notify_service",
+        "invalid_interval",
+        "invalid_quiet_hours",
+    } == SHARED_ERRORS
     assert {"invalid_nip", "invalid_token", "no_permission", "account_blocked"} <= CONFIG_ERRORS
     assert {"rate_limited", "cannot_connect", "unknown"} <= CONFIG_ERRORS
 

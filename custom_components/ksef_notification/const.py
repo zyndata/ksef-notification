@@ -22,6 +22,10 @@ CONF_TOKEN: Final = "token"
 CONF_NOTIFY_SERVICE: Final = "notify_service"
 CONF_FIELDS: Final = "fields"
 CONF_CHECK_INTERVAL_MIN: Final = "check_interval_min"
+#: A form field only: quiet hours are on when `quiet_start` and `quiet_end` are stored.
+CONF_QUIET_HOURS: Final = "quiet_hours"
+CONF_QUIET_START: Final = "quiet_start"
+CONF_QUIET_END: Final = "quiet_end"
 
 # KSeF environments (docs/KSEF_API.md § Environments)
 ENV_PROD: Final = "prod"
@@ -40,6 +44,10 @@ DEFAULT_CHECK_INTERVAL_MIN: Final = 15
 MIN_CHECK_INTERVAL_MIN: Final = 15
 MAX_CHECK_INTERVAL_MIN: Final = 1440
 CHECK_INTERVAL_STEP_MIN: Final = 5
+
+# Quiet hours, HH:MM in Home Assistant's time zone (docs/CONFIG.md § Entry options)
+DEFAULT_QUIET_START: Final = "22:00"
+DEFAULT_QUIET_END: Final = "06:00"
 
 # Default field selection, in the fixed message order (docs/CONFIG.md § Selectable fields)
 DEFAULT_FIELDS: Final = ("seller_name", "invoice_number", "gross_amount", "due_date")

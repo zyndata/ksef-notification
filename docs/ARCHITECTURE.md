@@ -53,6 +53,7 @@ custom_components/ksef_notification/
     ├── xml_parser.py    # bytes → InvoiceDetails, hardened streaming expat parser
     ├── tracker.py       # TrackerState + plan_cycle() / select_new() / record_handled() /
     │                    #   may_defer() / record_deferred() / finish_baseline() / finish_cycle()
+    ├── quiet_hours.py   # QuietHours: contains() / postpone() a scheduled check; parse()
     └── formatter.py     # Invoice + selection + locale → Message (translation keys + values);
                          #   render(message, strings); field_values() for the event and sensor
 ```
@@ -429,6 +430,15 @@ best-effort, so the refresh token does not outlive the entry.
   **Switch on again:** a baseline cycle runs at once. This works because turning the switch
   *off* clears the stored cursor; restoring the switch to *on* at start-up clears nothing, so a
   restart with notifications on catches up instead of re-baselining.
+- **Quiet hours** (optional `quiet_start`/`quiet_end`): every scheduled moment that falls inside
+  the daily window — the timer after a check, the 429 back-off, the first check when the switch
+  turns on or Home Assistant starts — is moved to the window's end (`core/quiet_hours.py`,
+  wall-clock time in Home Assistant's zone, compared in UTC so daylight-saving changes neither
+  skip nor repeat a check). Inside the window no request reaches KSeF, not even a token refresh.
+  The check at the end is an ordinary one: the cursor makes it catch up on the whole night, so
+  nothing is lost and the combine threshold applies as usual. *Check now* and
+  `homeassistant.update_entity` are explicit requests and run at any hour (still within
+  `MIN_QUERY_GAP`); the timer they re-arm is moved like any other.
 - **Cycles never overlap.** A refresh requested while a cycle runs is dropped.
 - **A failed check is not an error to Home Assistant.** It never raises `UpdateFailed`: its
   result is the last-check sensor's `outcome` (`ok`, `rate_limited`, `unavailable`,

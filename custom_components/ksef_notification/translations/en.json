@@ -30,12 +30,18 @@
       },
       "behaviour": {
         "title": "Behaviour",
-        "description": "How often to ask KSeF for new invoices. 15 minutes is the shortest interval KSeF's guidance for production use allows.",
+        "description": "How often to ask KSeF for new invoices, and optionally quiet hours. 15 minutes is the shortest interval KSeF's guidance for production use allows. During quiet hours KSeF is not asked at all, so no notification arrives; invoices that came in meanwhile are notified at the first check after the quiet hours end.",
         "data": {
-          "check_interval_min": "Check interval"
+          "check_interval_min": "Check interval",
+          "quiet_hours": "Quiet hours",
+          "quiet_start": "Quiet hours start",
+          "quiet_end": "Quiet hours end"
         },
         "data_description": {
-          "check_interval_min": "Minutes between checks: 15 to 1440, in steps of 5."
+          "check_interval_min": "Minutes between checks: 15 to 1440, in steps of 5.",
+          "quiet_hours": "No automatic checks during this daily window. Check now still works.",
+          "quiet_start": "In Home Assistant's time zone.",
+          "quiet_end": "The first check runs at this time. The window may span midnight, for example 22:00 to 06:00."
         }
       },
       "reauth_confirm": {
@@ -59,7 +65,8 @@
       "unknown": "Unexpected error. Details are in the Home Assistant log.",
       "no_fields": "Select at least one invoice field.",
       "invalid_notify_service": "Not a phone notify service. Use a notify.mobile_app_… service, for example mobile_app_my_phone.",
-      "invalid_interval": "The interval must be a whole number of minutes in steps of 5."
+      "invalid_interval": "The interval must be a whole number of minutes in steps of 5.",
+      "invalid_quiet_hours": "Quiet hours must start and end at different times."
     },
     "abort": {
       "already_configured": "This company is already set up for this KSeF environment.",
@@ -82,19 +89,26 @@
       },
       "behaviour": {
         "title": "Behaviour",
-        "description": "How often to ask KSeF for new invoices. 15 minutes is the shortest interval KSeF's guidance for production use allows.",
+        "description": "How often to ask KSeF for new invoices, and optionally quiet hours. 15 minutes is the shortest interval KSeF's guidance for production use allows. During quiet hours KSeF is not asked at all, so no notification arrives; invoices that came in meanwhile are notified at the first check after the quiet hours end.",
         "data": {
-          "check_interval_min": "Check interval"
+          "check_interval_min": "Check interval",
+          "quiet_hours": "Quiet hours",
+          "quiet_start": "Quiet hours start",
+          "quiet_end": "Quiet hours end"
         },
         "data_description": {
-          "check_interval_min": "Minutes between checks: 15 to 1440, in steps of 5."
+          "check_interval_min": "Minutes between checks: 15 to 1440, in steps of 5.",
+          "quiet_hours": "No automatic checks during this daily window. Check now still works.",
+          "quiet_start": "In Home Assistant's time zone.",
+          "quiet_end": "The first check runs at this time. The window may span midnight, for example 22:00 to 06:00."
         }
       }
     },
     "error": {
       "no_fields": "Select at least one invoice field.",
       "invalid_notify_service": "Not a phone notify service. Use a notify.mobile_app_… service, for example mobile_app_my_phone.",
-      "invalid_interval": "The interval must be a whole number of minutes in steps of 5."
+      "invalid_interval": "The interval must be a whole number of minutes in steps of 5.",
+      "invalid_quiet_hours": "Quiet hours must start and end at different times."
     }
   },
   "selector": {

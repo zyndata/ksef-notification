@@ -67,6 +67,7 @@ def test_every_layer_is_covered() -> None:
         "fields.py",
         "formatter.py",
         "model.py",
+        "quiet_hours.py",
         "tracker.py",
         "xml_parser.py",
     }

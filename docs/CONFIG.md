@@ -13,7 +13,7 @@ entry for the same environment and NIP aborts with *"Already configured"*
 |---|---|---|
 | 1 | `user` | **KSeF access** — environment, the company's NIP, the KSeF token. On submit the NIP is checked, then the duplicate check runs, then the integration authenticates and runs one metadata query (`pageSize` 10, last hour); only success moves on. |
 | 2 | `notification` | **Notification** — the phone to notify, and which invoice fields the message carries. |
-| 3 | `behaviour` | **Behaviour** — how often to check. Creates the entry. |
+| 3 | `behaviour` | **Behaviour** — how often to check, and optional quiet hours. Creates the entry. |
 
 Step 1 reports each failure as its own error. The first two are found without a request to
 KSeF; the duplicate check (abort `already_configured`) also runs before any request.
@@ -39,6 +39,7 @@ Steps 2 and 3 (and the options flow) report:
 | `invalid_notify_service` | phone | After trimming and removing a `notify.` prefix, not `mobile_app_` followed by lowercase letters, digits or `_` |
 | `no_fields` | fields | No field selected |
 | `invalid_interval` | interval | Not a whole number of minutes in steps of 5. Values outside 15–1 440 are refused by the form itself |
+| `invalid_quiet_hours` | quiet hours end | Quiet hours on, and start and end are the same minute. A value that is not a time is refused by the form itself |
 
 **Options flow:** steps 2 and 3, prefilled with the current options, same validation, no request
 to KSeF. The entry is reloaded only when an option actually changed; the notified-invoice state is
@@ -66,6 +67,7 @@ failure leaves the old token in place. Options and the notified-invoice state ar
 | Phone to notify | `notify_service` | string | required | `mobile_app_[a-z0-9_]+`, stored without the `notify.` prefix | Registered `notify.mobile_app_*` services offered in a dropdown; a custom value is accepted (a phone not registered yet) as long as it has that shape |
 | Invoice fields in the notification | `fields` | list of field keys | `seller_name`, `invoice_number`, `gross_amount`, `due_date` | at least 1 | See [Selectable invoice fields](#selectable-invoice-fields). Stored in the fixed order, whatever order they were ticked in |
 | Check interval | `check_interval_min` | int minutes | **15** | **15–1 440**, step 5 (off-step values refused) | 15 is both the default and the minimum: the official production guidance and the request budget ([ARCHITECTURE.md](ARCHITECTURE.md#coordinator-scheduling)) |
+| Quiet hours | `quiet_start`, `quiet_end` | `"HH:MM"` strings | **off**; the form proposes 22:00 and 06:00 | start ≠ end; seconds dropped | A daily window in Home Assistant's time zone, start included, end excluded; it may span midnight. No scheduled check runs inside it; the first one runs at its end and catches up on everything that arrived meanwhile ([ARCHITECTURE.md](ARCHITECTURE.md#coordinator-scheduling)). The form shows an on/off toggle (`quiet_hours`, not stored): both keys are stored when it is on and removed when it is off, so an entry without them has no quiet hours |
 
 Not options, fixed in code (values and reasons in [ARCHITECTURE.md](ARCHITECTURE.md)): the
 combined-message threshold (4 invoices in one check), the minimum gap for a manual check
@@ -287,9 +289,13 @@ kosztowe: 5", "jeszcze 2").
 {
   "notify_service": "mobile_app_phone",
   "fields": ["seller_name", "invoice_number", "gross_amount", "due_date"],
-  "check_interval_min": 15
+  "check_interval_min": 15,
+  "quiet_start": "22:00",
+  "quiet_end": "06:00"
 }
 ```
+
+The two `quiet_*` keys exist only while quiet hours are on.
 
 Config entry version: **1**. `unique_id`: `<environment>_<nip>`. Title: `KSeF <nip>` for
 production, `KSeF <nip> (TEST)` / `KSeF <nip> (DEMO)` otherwise, so the same company in two

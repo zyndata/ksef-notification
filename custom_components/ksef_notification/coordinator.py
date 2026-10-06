@@ -40,6 +40,8 @@ from .client import (
 from .const import (
     CONF_CHECK_INTERVAL_MIN,
     CONF_FIELDS,
+    CONF_QUIET_END,
+    CONF_QUIET_START,
     DEFAULT_CHECK_INTERVAL_MIN,
     DEFAULT_FIELDS,
     DOMAIN,
@@ -47,7 +49,7 @@ from .const import (
     MIN_QUERY_GAP,
     RETRY_AFTER_MARGIN,
 )
-from .core import xml_parser
+from .core import quiet_hours, xml_parser
 from .core.fields import needs_xml, ordered
 from .core.formatter import is_combined
 from .core.model import Invoice
@@ -117,6 +119,11 @@ class KsefCoordinator(DataUpdateCoordinator[KsefData]):
         self._interval = timedelta(
             minutes=int(entry.options.get(CONF_CHECK_INTERVAL_MIN, DEFAULT_CHECK_INTERVAL_MIN))
         )
+        self._quiet = (
+            quiet_hours.parse(entry.options[CONF_QUIET_START], entry.options[CONF_QUIET_END])
+            if CONF_QUIET_START in entry.options and CONF_QUIET_END in entry.options
+            else None
+        )
         self.selection: tuple[str, ...] = ordered(entry.options.get(CONF_FIELDS, DEFAULT_FIELDS))
         self.notifier = Notifier(hass, entry, self.selection)
 
@@ -181,8 +188,10 @@ class KsefCoordinator(DataUpdateCoordinator[KsefData]):
                 return
             self._enabled = True
             if self._halted is None:
-                if earliest := self._earliest_manual_check():
-                    self._arm_timer(earliest)
+                now = dt_util.utcnow()
+                when = self._outside_quiet_hours(self._earliest_manual_check() or now)
+                if when > now:
+                    self._arm_timer(when)
                 else:
                     self._start_check()
             self._publish()
@@ -240,6 +249,13 @@ class KsefCoordinator(DataUpdateCoordinator[KsefData]):
 
     # --- scheduling -------------------------------------------------------------------------
 
+    def _outside_quiet_hours(self, when: datetime) -> datetime:
+        """`when`, or the end of the quiet hours it falls in. Only scheduled checks wait;
+        Check now and `update_entity` are asked for and run at any hour."""
+        if self._quiet is None:
+            return when
+        return self._quiet.postpone(when, dt_util.get_default_time_zone())
+
     def _running(self) -> bool:
         return self._task is not None and not self._task.done()
 
@@ -279,6 +295,12 @@ class KsefCoordinator(DataUpdateCoordinator[KsefData]):
     @callback
     def _on_timer(self, _now: datetime) -> None:
         self._unsub_timer = None
+        # The time zone may have changed since the timer was armed.
+        now = dt_util.utcnow()
+        if (when := self._outside_quiet_hours(now)) > now:
+            self._arm_timer(when)
+            self._publish()
+            return
         self._start_check()
 
     # --- one check --------------------------------------------------------------------------
@@ -314,7 +336,7 @@ class KsefCoordinator(DataUpdateCoordinator[KsefData]):
                 self.hass, DOMAIN, issue_id(ISSUE_ACCOUNT_BLOCKED, self.config_entry.entry_id)
             )
         if self._enabled and self._halted is None:
-            self._arm_timer(dt_util.utcnow() + delay)
+            self._arm_timer(self._outside_quiet_hours(dt_util.utcnow() + delay))
         self._publish()
 
     def _fail_auth(self, err: KsefAuthError) -> None:

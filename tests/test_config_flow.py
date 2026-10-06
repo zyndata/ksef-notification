@@ -26,6 +26,9 @@ from custom_components.ksef_notification.const import (
     CONF_FIELDS,
     CONF_NIP,
     CONF_NOTIFY_SERVICE,
+    CONF_QUIET_END,
+    CONF_QUIET_HOURS,
+    CONF_QUIET_START,
     CONF_TOKEN,
     DEFAULT_FIELDS,
     DOMAIN,
@@ -491,6 +494,97 @@ async def test_interval_off_step_is_an_error(
     assert result["errors"] == {CONF_CHECK_INTERVAL_MIN: "invalid_interval"}
 
 
+async def test_quiet_hours_are_off_by_default_with_a_night_prefilled(
+    hass: HomeAssistant, ksef: FakeKsef
+) -> None:
+    result = await _configure(hass, await _through_access(hass), NOTIFICATION)
+
+    defaults = {
+        str(marker): marker.default()
+        for marker in result["data_schema"].schema
+        if str(marker) in (CONF_QUIET_HOURS, CONF_QUIET_START, CONF_QUIET_END)
+    }
+    assert defaults == {CONF_QUIET_HOURS: False, CONF_QUIET_START: "22:00", CONF_QUIET_END: "06:00"}
+
+
+async def test_quiet_hours_off_store_nothing(hass: HomeAssistant, ksef: FakeKsef) -> None:
+    result = await _configure(hass, await _through_access(hass), NOTIFICATION)
+
+    result = await _configure(
+        hass,
+        result,
+        {**BEHAVIOUR, CONF_QUIET_HOURS: False, CONF_QUIET_START: "23:00", CONF_QUIET_END: "05:00"},
+    )
+
+    assert result["options"] == {**NOTIFICATION, **BEHAVIOUR}
+
+
+@pytest.mark.parametrize(
+    ("typed", "stored"),
+    [
+        (("22:00", "06:00"), ("22:00", "06:00")),
+        (("22:00:00", "6:30:00"), ("22:00", "06:30")),
+        (("08:00", "17:00"), ("08:00", "17:00")),
+    ],
+)
+async def test_quiet_hours_on_are_stored_as_hours_and_minutes(
+    hass: HomeAssistant, ksef: FakeKsef, typed: tuple[str, str], stored: tuple[str, str]
+) -> None:
+    result = await _configure(hass, await _through_access(hass), NOTIFICATION)
+
+    result = await _configure(
+        hass,
+        result,
+        {**BEHAVIOUR, CONF_QUIET_HOURS: True, CONF_QUIET_START: typed[0], CONF_QUIET_END: typed[1]},
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["options"] == {
+        **NOTIFICATION,
+        **BEHAVIOUR,
+        CONF_QUIET_START: stored[0],
+        CONF_QUIET_END: stored[1],
+    }
+
+
+async def test_quiet_hours_starting_when_they_end_are_an_error(
+    hass: HomeAssistant, ksef: FakeKsef
+) -> None:
+    result = await _configure(hass, await _through_access(hass), NOTIFICATION)
+
+    result = await _configure(
+        hass,
+        result,
+        {
+            **BEHAVIOUR,
+            CONF_QUIET_HOURS: True,
+            CONF_QUIET_START: "22:00",
+            CONF_QUIET_END: "22:00:00",
+        },
+    )
+
+    assert result["step_id"] == "behaviour"
+    assert result["errors"] == {CONF_QUIET_END: "invalid_quiet_hours"}
+
+
+async def test_a_time_that_is_not_a_time_is_refused_by_the_schema(
+    hass: HomeAssistant, ksef: FakeKsef
+) -> None:
+    result = await _configure(hass, await _through_access(hass), NOTIFICATION)
+
+    with pytest.raises(InvalidData):
+        await _configure(
+            hass,
+            result,
+            {
+                **BEHAVIOUR,
+                CONF_QUIET_HOURS: True,
+                CONF_QUIET_START: "25:00",
+                CONF_QUIET_END: "06:00",
+            },
+        )
+
+
 # --- options flow --------------------------------------------------------------------------
 
 
@@ -540,7 +634,14 @@ async def test_options_flow_does_not_offer_identity_fields(hass: HomeAssistant) 
     result = await hass.config_entries.options.async_configure(result["flow_id"], NOTIFICATION)
     keys |= {str(marker) for marker in result["data_schema"].schema}
 
-    assert keys == {CONF_NOTIFY_SERVICE, CONF_FIELDS, CONF_CHECK_INTERVAL_MIN}
+    assert keys == {
+        CONF_NOTIFY_SERVICE,
+        CONF_FIELDS,
+        CONF_CHECK_INTERVAL_MIN,
+        CONF_QUIET_HOURS,
+        CONF_QUIET_START,
+        CONF_QUIET_END,
+    }
 
 
 async def test_options_flow_validates_like_the_wizard(hass: HomeAssistant) -> None:
@@ -562,6 +663,36 @@ async def test_options_flow_validates_like_the_wizard(hass: HomeAssistant) -> No
         result["flow_id"], {CONF_CHECK_INTERVAL_MIN: 17}
     )
     assert result["errors"] == {CONF_CHECK_INTERVAL_MIN: "invalid_interval"}
+
+
+async def test_options_flow_turns_quiet_hours_on_and_off(hass: HomeAssistant) -> None:
+    entry = _entry()
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], NOTIFICATION)
+    assert _suggested(result, CONF_QUIET_HOURS) is False
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**BEHAVIOUR, CONF_QUIET_HOURS: True, CONF_QUIET_START: "23:00", CONF_QUIET_END: "07:00"},
+    )
+    assert dict(entry.options) == {
+        **NOTIFICATION,
+        **BEHAVIOUR,
+        CONF_QUIET_START: "23:00",
+        CONF_QUIET_END: "07:00",
+    }
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], NOTIFICATION)
+    assert _suggested(result, CONF_QUIET_HOURS) is True
+    assert _suggested(result, CONF_QUIET_START) == "23:00"
+    assert _suggested(result, CONF_QUIET_END) == "07:00"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**BEHAVIOUR, CONF_QUIET_HOURS: False, CONF_QUIET_START: "23:00", CONF_QUIET_END: "07:00"},
+    )
+    assert dict(entry.options) == {**NOTIFICATION, **BEHAVIOUR}
 
 
 async def test_unchanged_options_do_not_reload(hass: HomeAssistant) -> None:

@@ -30,12 +30,18 @@
       },
       "behaviour": {
         "title": "Działanie",
-        "description": "Jak często pytać KSeF o nowe faktury. 15 minut to najkrótszy odstęp, na jaki pozwalają zalecenia KSeF dla środowiska produkcyjnego.",
+        "description": "Jak często pytać KSeF o nowe faktury i, opcjonalnie, kiedy nie pytać wcale. 15 minut to najkrótszy odstęp, na jaki pozwalają zalecenia KSeF dla środowiska produkcyjnego. W trybie nocnym KSeF nie jest odpytywany, więc nie przychodzą żadne powiadomienia; faktury, które wpłynęły w tym czasie, zostaną zgłoszone przy pierwszym sprawdzeniu po jego zakończeniu.",
         "data": {
-          "check_interval_min": "Odstęp między sprawdzeniami"
+          "check_interval_min": "Odstęp między sprawdzeniami",
+          "quiet_hours": "Tryb nocny",
+          "quiet_start": "Początek trybu nocnego",
+          "quiet_end": "Koniec trybu nocnego"
         },
         "data_description": {
-          "check_interval_min": "W minutach: od 15 do 1440, co 5."
+          "check_interval_min": "W minutach: od 15 do 1440, co 5.",
+          "quiet_hours": "Codziennie w tych godzinach nie ma automatycznych sprawdzeń. Przycisk „Sprawdź teraz” nadal działa.",
+          "quiet_start": "Według strefy czasowej Home Assistant.",
+          "quiet_end": "O tej godzinie odbywa się pierwsze sprawdzenie. Przedział może obejmować północ, np. od 22:00 do 06:00."
         }
       },
       "reauth_confirm": {
@@ -59,7 +65,8 @@
       "unknown": "Nieoczekiwany błąd. Szczegóły są w logu Home Assistant.",
       "no_fields": "Wybierz co najmniej jedno pole faktury.",
       "invalid_notify_service": "To nie jest usługa powiadomień telefonu. Podaj usługę notify.mobile_app_…, na przykład mobile_app_moj_telefon.",
-      "invalid_interval": "Odstęp musi być pełną liczbą minut, podzielną przez 5."
+      "invalid_interval": "Odstęp musi być pełną liczbą minut, podzielną przez 5.",
+      "invalid_quiet_hours": "Początek i koniec trybu nocnego muszą być różne."
     },
     "abort": {
       "already_configured": "Ta firma jest już skonfigurowana w tym środowisku KSeF.",
@@ -82,19 +89,26 @@
       },
       "behaviour": {
         "title": "Działanie",
-        "description": "Jak często pytać KSeF o nowe faktury. 15 minut to najkrótszy odstęp, na jaki pozwalają zalecenia KSeF dla środowiska produkcyjnego.",
+        "description": "Jak często pytać KSeF o nowe faktury i, opcjonalnie, kiedy nie pytać wcale. 15 minut to najkrótszy odstęp, na jaki pozwalają zalecenia KSeF dla środowiska produkcyjnego. W trybie nocnym KSeF nie jest odpytywany, więc nie przychodzą żadne powiadomienia; faktury, które wpłynęły w tym czasie, zostaną zgłoszone przy pierwszym sprawdzeniu po jego zakończeniu.",
         "data": {
-          "check_interval_min": "Odstęp między sprawdzeniami"
+          "check_interval_min": "Odstęp między sprawdzeniami",
+          "quiet_hours": "Tryb nocny",
+          "quiet_start": "Początek trybu nocnego",
+          "quiet_end": "Koniec trybu nocnego"
         },
         "data_description": {
-          "check_interval_min": "W minutach: od 15 do 1440, co 5."
+          "check_interval_min": "W minutach: od 15 do 1440, co 5.",
+          "quiet_hours": "Codziennie w tych godzinach nie ma automatycznych sprawdzeń. Przycisk „Sprawdź teraz” nadal działa.",
+          "quiet_start": "Według strefy czasowej Home Assistant.",
+          "quiet_end": "O tej godzinie odbywa się pierwsze sprawdzenie. Przedział może obejmować północ, np. od 22:00 do 06:00."
         }
       }
     },
     "error": {
       "no_fields": "Wybierz co najmniej jedno pole faktury.",
       "invalid_notify_service": "To nie jest usługa powiadomień telefonu. Podaj usługę notify.mobile_app_…, na przykład mobile_app_moj_telefon.",
-      "invalid_interval": "Odstęp musi być pełną liczbą minut, podzielną przez 5."
+      "invalid_interval": "Odstęp musi być pełną liczbą minut, podzielną przez 5.",
+      "invalid_quiet_hours": "Początek i koniec trybu nocnego muszą być różne."
     }
   },
   "selector": {
