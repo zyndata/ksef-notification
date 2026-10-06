@@ -1,6 +1,6 @@
 """Constants for the KSeF Notification integration.
 
-Values fixed by the phase 0 research (docs/KSEF_API.md) and the phase 1 architecture
+Values fixed by the KSeF API research (docs/KSEF_API.md) and the architecture
 (docs/ARCHITECTURE.md); option keys name the options documented in docs/CONFIG.md. Names
 in capitals match the ones those documents use.
 """

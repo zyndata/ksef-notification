@@ -1,6 +1,6 @@
 """New-invoice detection: unit behaviour, then whole sequences of cycles and restarts.
 
-The simulation at the end is the phase's acceptance test: a scripted KSeF with the
+The simulation at the end is the tracker's acceptance test: a scripted KSeF with the
 high-water-mark guarantee, invoices that become visible late, incomplete queries, missing
 HWMs, deferrals and restarts in the middle of a cycle — and no invoice is notified twice or
 missed in any of them.

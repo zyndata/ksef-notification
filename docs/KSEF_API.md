@@ -141,7 +141,7 @@ Ministerstwem Finansów przez formularz zgłoszeniowy.`
 
 Status retention: the operation is queryable for **7 days**, then `410 Gone` (CHANGELOG 2.4.0).
 HTTP `400` code 21304 = unknown reference number. **Observed:** with a KSeF token the status was
-200 on the first poll, about 0.5 s after step 2, in both runs; on 2026-10-06 in phase 3 (the
+200 on the first poll, about 0.5 s after step 2, in both runs; in a later run on 2026-10-06 (the
 integration's own client) it was still 100 at 0.5 s and 200 at 1.5 s. (XAdES authentication can stay at
 100 for a long time while certificate revocation is checked; token authentication does not
 involve that.)
@@ -321,7 +321,7 @@ Either way, windows must be **contiguous** (end of one = start of the next) and
 **deduplicated by `ksefNumber`**; whether `from` is inclusive is not documented, so the window
 should overlap rather than risk a gap. **Observed:** the HWM was 1 min 59.9 s behind "now" on
 2026-10-06, and 1 min 57 s in a second run the same day (1 min 59.7 s in FAILURES, twice).
-Choosing between the strategies is a phase 1 decision.
+The integration polls up to now and deduplicates ([ARCHITECTURE.md](ARCHITECTURE.md#new-invoice-detection)).
 
 **Observed in FAILURES** (12 invoices stored within seconds, `pageSize` 10):
 
@@ -523,11 +523,11 @@ Assistant instance and public IP; poll interval `T`; cost invoices only (`Subjec
 
 ### Worst case per hour, at the minimum interval T = 15 min
 
-**Measured** (phase 8, 2026-10-06): the real integration over a simulated day in Home Assistant's
+**Measured** (2026-10-06): the real integration over a simulated day in Home Assistant's
 test harness, time stepped by the minute, every field selected, three new FA(3) invoices before
 every check (the most that are notified individually, so the most downloads), requests counted
 in sliding windows as KSeF counts them (`tests/test_budget.py`). The per-cycle cap on XML
-fetches is *k* = 3, the combine threshold fixed in phase 1.
+fetches is *k* = 3, the combine threshold of the design.
 
 | Group | Peak per s / min / h | Limit per s / min / h | Share of the hourly limit | In the day |
 |---|---|---|---|---|
@@ -542,7 +542,7 @@ exactly **two** full authentications (setup, and day 7 when the refresh token ru
 refresh per check. A real Home Assistant on TEST showed the same per-check costs on its
 last-check sensor ([ARCHITECTURE.md](ARCHITECTURE.md#resource-and-request-budget)).
 
-Consequences for the design (decided in phase 1, constrained here):
+Consequences for the design (decided in [ARCHITECTURE.md](ARCHITECTURE.md), constrained here):
 
 1. **Minimum poll interval: 15 minutes.** The arithmetic would allow one metadata query every
    3 minutes (20 / h), but the official production guidance is 15 minutes, the budget is shared

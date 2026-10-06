@@ -1,4 +1,4 @@
-"""Invoice XML bytes → InvoiceDetails with a hardened streaming expat parser (phase 4).
+"""Invoice XML bytes → InvoiceDetails with a hardened streaming expat parser.
 
 Rules in docs/ARCHITECTURE.md § XML safety.
 """

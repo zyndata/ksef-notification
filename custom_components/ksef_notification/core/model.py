@@ -1,4 +1,4 @@
-"""The Invoice model, built from a metadata record and optionally the XML details (phase 4)."""
+"""The Invoice model, built from a metadata record and optionally the XML details."""
 
 from __future__ import annotations
 

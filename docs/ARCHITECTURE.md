@@ -1,7 +1,7 @@
 # Architecture
 
-**Phase 1 design — completed 2026-10-06.** A later session must be able to implement every phase
-from this document without re-deriving a decision. Inputs: [KSEF_API.md](KSEF_API.md) (verified
+The design of the integration, as implemented in 1.0.0. Every decision is stated with its
+reason, so a change can be judged against it. Inputs: [KSEF_API.md](KSEF_API.md) (verified
 API facts, limits and the request budget) and [CONFIG.md](CONFIG.md) (options, selectable fields,
 outputs).
 
@@ -57,10 +57,10 @@ custom_components/ksef_notification/
                          #   render(message, strings); field_values() for the event and sensor
 ```
 
-Layering rules (phase 4 enforces the first one with a test, as Walk the dog does):
+Layering rules (`tests/test_purity.py` enforces the first one, as Walk the dog does):
 
 - `core/*` is **pure**: no I/O, no `homeassistant` imports, no `datetime.now()`. It takes
-  already-fetched data and returns values. This is what phases 4 and 8 test exhaustively.
+  already-fetched data and returns values. This is what the core and budget tests exercise exhaustively.
 - `client/*` does all KSeF I/O through Home Assistant's shared `aiohttp` session (passed in) and
   never imports `core`. It raises typed errors and carries no translated text.
 - Only `coordinator.py` wires client → core → storage → notifier. Entities read coordinator data
@@ -68,7 +68,7 @@ Layering rules (phase 4 enforces the first one with a test, as Walk the dog does
 - `notifier.py`, not `notify.py`: a module named after a platform *is* that platform to Home
   Assistant (lesson from Walk the dog).
 
-### Client interface (contract for phase 3)
+### Client interface
 
 ```python
 class KsefClient:
@@ -117,7 +117,7 @@ moment they are sent, so a download repeated after a 401 is paced too. Request a
 are logged by a label (`metadata`, `invoice xml`, …), never by path, because a path can carry a
 KSeF number. JSON bodies are capped at `MAX_JSON_BYTES` = 4 MB, XML at `MAX_XML_BYTES`.
 
-### Error hierarchy (contract for phase 3)
+### Error hierarchy
 
 | Exception | Raised for | Coordinator reaction |
 |---|---|---|
@@ -260,7 +260,7 @@ windows — is paid by the `seen` set below.
   sending at full rate to the same buyer in the same minute; only a **batch session** (up to
   thousands of invoices in one package) from a seller billing this one company 750 times at
   once could reach it. Accepted for 1.0: no plausible cost-invoice stream comes near it, and the
-  phase 4 simulation and the phase 8 burst test (300 invoices in one check) stay inside it.
+  tracker simulation and the burst test (300 invoices in one check) stay inside it.
 
 ### The 100-day limit
 
@@ -351,7 +351,7 @@ that writes to its database. Both are handled deliberately:
   (`recorder: exclude: event_types: [ksef_notification_invoice, call_service]`) for users who
   want nothing in the database.
 - **The `call_service` event** that Home Assistant fires for every service call is recorded as
-  well, and for the push it carries the notification's title and message (found in the phase 6
+  well, and for the push it carries the notification's title and message (found in the
   smoke test, 2026-10-06). It is Home Assistant's own event; the same exclusion covers it, at
   the price of not recording any service call.
 - The **push itself** leaves Home Assistant through the companion app's push relay to Google or
@@ -379,7 +379,7 @@ With the poll interval ≥ 15 minutes and a 15-minute access token, expect one r
 and one full authentication per 7 days (and one per Home Assistant start).
 
 **Status poll:** after 0.5 s, then 1, 2, 4, 4, 4 … s, for at most `AUTH_POLL_TIMEOUT` = 30 s
-(observed: done on the first poll in phase 0, on the second in phase 3). Status 100 past the
+(observed on TEST: done on the first or the second poll). Status 100 past the
 timeout → `KsefTemporaryError`. Concurrent callers share one authentication (a lock).
 
 **Outcomes of a full authentication:**
@@ -399,7 +399,7 @@ timeout → `KsefTemporaryError`. Concurrent callers share one authentication (a
 full authentication), repeat the call **once**. A second 401 → `KsefTemporaryError`. **`403`** →
 `KsefAuthError("no_permission")`.
 
-**Re-authentication** (phase 5): the reauth step asks for a new KSeF token, validates it with
+**Re-authentication**: the reauth step asks for a new KSeF token, validates it with
 `client.validate()`, updates `entry.data` and reloads the entry. The cursor and `seen` are kept —
 a new token for the same company does not reset what was already notified.
 
@@ -459,7 +459,7 @@ best-effort, so the refresh token does not outlive the entry.
 
 ### Failure paths, measured
 
-Phase 8 (2026-10-06). KSeF's side of each failure was provoked on TEST where possible
+Measured 2026-10-06. KSeF's side of each failure was provoked on TEST where possible
 ([KSEF_API.md](KSEF_API.md#failure-behaviour-observed)); the integration's reaction was run end to
 end in Home Assistant's test harness with the replies TEST gave (`tests/test_resilience.py`).
 "Once" means: every invoice that arrived before, during or after the failure produced exactly
@@ -626,8 +626,8 @@ Public contracts from 1.0.0 on. Exact names, states and payload schemas are in
 
 ## Resource and request budget
 
-Consistent with [KSEF_API.md](KSEF_API.md#request-budget). **Measured in phase 8 (2026-10-06)**
-— the tables below were estimates in phase 1; each number is now what `tests/test_budget.py`
+Consistent with [KSEF_API.md](KSEF_API.md#request-budget). **Measured 2026-10-06**
+— the tables below were first design estimates; each number is now what `tests/test_budget.py`
 counts over a simulated day (time stepped by the minute, every field selected) and asserts, so a
 change that costs more requests fails the suite. Every estimate held.
 
@@ -677,7 +677,7 @@ refresh, 1 query and 2 downloads, and the last-check sensor read 2 / 2 for the h
 | Event-loop time | JSON decode and formatting only; XML parsing in the executor |
 | Pushes per device per day | ≤ 288 at the default interval (relay limit 500) |
 
-**Measured** (phase 8):
+**Measured** (2026-10-06):
 
 - **Memory does not grow.** Over a simulated week with three invoices an hour, the memory
   allocated by the integration's own code and still held was 23.1 KB on day two and 23.6 KB on

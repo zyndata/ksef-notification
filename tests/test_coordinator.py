@@ -2,7 +2,7 @@
 
 Home Assistant runs the real integration against the scripted KSeF (`World` serves the
 metadata route); time is frozen and moved by the tests, so every request is counted. These
-are the phase 6 contracts of docs/ARCHITECTURE.md and docs/CONFIG.md.
+are the contracts of docs/ARCHITECTURE.md and docs/CONFIG.md.
 """
 
 from __future__ import annotations

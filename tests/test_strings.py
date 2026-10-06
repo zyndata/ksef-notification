@@ -164,7 +164,7 @@ def test_reauth_description_uses_only_the_placeholders_the_flow_passes() -> None
     assert "{entry_title}" in STRINGS["config"]["step"]["reauth_confirm"]["description"]
 
 
-# --- entities, exceptions and repair issues (phase 6) -----------------------------------------
+# --- entities, exceptions and repair issues ------------------------------------------------
 
 PLATFORM_MODULES = ("switch", "sensor", "button")
 
@@ -214,7 +214,7 @@ def test_every_repair_issue_has_a_title_and_description() -> None:
     assert "{entry_title}" in STRINGS["issues"]["account_blocked"]["title"]
 
 
-# --- translations (phase 7) -------------------------------------------------------------------
+# --- translations ---------------------------------------------------------------------------
 
 #: Every language shipped beyond the base file.
 TRANSLATED = ("pl",)

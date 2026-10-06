@@ -7,96 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+The first release. KSeF Notification watches KSeF, the Polish national e-invoice system, for new
+cost invoices of your company and sends each one to your phone.
+
 ### Added
 
-- Proof that the integration stays within KSeF's limits and survives its failures. Measured
-  over a simulated day with every field selected: at most 4 of KSeF's 20 invoice-list requests
-  and 12 of its 64 invoice downloads per hour (6 and 18 when *Check now* is pressed at every
-  chance); a week costs two logins. Tested end to end: an expired or refused session, a refresh
-  token running out after seven days, a revoked KSeF token, a blocked account, KSeF asking to
-  slow down, a six-hour outage and a restart in the middle of a check. After each one the
-  integration recovers by itself where it can, asks for a new token only when the token is the
-  problem, and notifies every invoice exactly once — except after a power cut in the instant
-  between a notification and its record, when that one notification can come twice. Memory
-  stays flat over a week, and nothing blocks Home Assistant's event loop.
-- The KSeF documentation in `docs/KSEF_API.md` now records what KSeF actually does in each of
-  those failures, provoked on the KSeF test environment: the answers to a revoked token, a
-  blocked account and an exceeded limit, how long KSeF asks to wait, and how its paging and date
-  filter behave.
-- Polish translation of everything the integration shows: the setup wizard, options,
-  re-authentication, errors, entities, repair notices and the notifications themselves. In
-  Polish the integration is called "Powiadomienia KSeF". Notifications follow Home Assistant's
-  language; amounts and dates use Polish formatting when it is Polish.
-- An icon and logo of its own (an invoice sheet with a bell), shipped inside the integration so
-  Home Assistant shows them without any extra setup. They deliberately do not use the KSeF or
-  Ministry of Finance logo.
-- The integration now works end to end. Every 15 minutes (or the chosen interval) it asks KSeF
-  for new cost invoices and sends each one to the chosen phone with the selected fields — one
-  notification per invoice, or one summary when more than three arrive at once. The first check
-  after setup only takes note of what is already there; invoices that arrive while Home
-  Assistant is down are notified once it is back, and none is notified twice.
-- A *Notifications* switch (off means no contact with KSeF at all, and turning it back on does
-  not deliver what arrived meanwhile), a *Last invoice* sensor with the selected fields as
-  attributes (kept out of Home Assistant's history), a diagnostic *Last check* sensor that tells
-  "no new invoices" from "KSeF has not answered", and a *Check now* button limited to once per
-  10 minutes.
-- The `ksef_notification_invoice` event for automations, once per new invoice, with the
-  selected fields.
-- Failure handling: when KSeF asks to slow down, the next check waits as long as it says; an
-  outage only delays checks; a refused token starts re-authentication; a blocked account and a
-  missing or failing phone each raise a repair issue. An invoice whose details KSeF has not
-  prepared yet is retried twice, then notified without them.
-- A diagnostics download with the KSeF token, NIP, phone, tokens and every invoice value
-  redacted.
-- The tracker state is stored in Home Assistant's own storage and holds no invoice content;
-  the KSeF session is closed when the integration unloads or Home Assistant stops.
-- Tests for all of it against the scripted KSeF on a frozen clock, plus a test against a real
-  recorder that the invoice fields never reach Home Assistant's database.
-
-- The setup wizard in three steps — KSeF access, notification, behaviour. The first step
-  checks the NIP (including its check digit) and then the KSeF token against KSeF itself, with
-  one login and one small invoice query, and tells a wrong token, a token without the
-  InvoiceRead permission, a blocked account, KSeF asking to slow down and an unreachable KSeF
-  apart. The same company can be added once per KSeF environment; a duplicate is refused before
-  anything is sent to KSeF. The second step offers the registered Companion-app phones and the
-  13 invoice fields (four preselected); the third the check interval (15–1 440 minutes).
-- An options flow to change the phone, the fields and the interval later; the integration
-  reloads only when something actually changed.
-- A re-authentication flow for entering a new KSeF token when KSeF stops accepting the old one;
-  nothing already notified is notified again.
-- English texts for every step, field, error and choice of the flows.
-- Tests for all three flows against the scripted KSeF, including a check that the token never
-  appears in the log or on a form.
-
-- The decision core (`core/`), pure Python without Home Assistant: an invoice model built from
-  KSeF's metadata in which every field may be missing; a hardened reader for the invoice XML
-  (FA(2) and FA(3)) that refuses DTDs and entities, bounds size, depth and text, and picks
-  only the due dates, payment form, bank account and line items the notification can show —
-  never a factor's account, a partial payment's form or a correction's "before" rows; the
-  new-invoice tracker that decides what to notify from KSeF's high-water mark, keeps only
-  hashes and timestamps, and never notifies an invoice twice or misses one across restarts;
-  and the message formatter: the selected fields in a fixed order, Polish and English number
-  and date rules, grouped bank accounts, seller-written text cleaned and shortened, absent
-  values shown as "—", and one combined message for more than three invoices.
-- English texts for notification titles, field labels, payment forms and invoice types.
-- Tests for all of it, including a simulation of three days of checks with late invoices,
-  partial queries, deferrals and restarts, and hostile XML documents.
-
-- The KSeF client (`client/`): logs in with a KSeF token (RSA-OAEP encryption with the current
-  public key, status polling, redeem), keeps the 15-minute access token alive with the refresh
-  token and falls back to a fresh login when KSeF refuses the refresh, and tells a revoked or
-  under-privileged KSeF token apart from a KSeF outage. It lists cost invoices by the date they
-  were stored in KSeF, page by page, with KSeF's completeness marker, and downloads one
-  invoice's XML. It honours KSeF's `Retry-After` and refuses further calls to a blocked group
-  until it has passed, spaces downloads 250 ms apart, caps response sizes, and counts its own
-  requests per limit group. Tokens are kept in memory only and never logged.
-- Tests for the client against a scripted, offline KSeF, with hand-written synthetic fixtures
-  and a test that rejects any fixture value not on the list of invented NIPs, names, account
-  numbers and amounts.
+- **New cost invoices on your phone.** Every 15 minutes (or the interval you choose, up to once
+  a day) the integration asks KSeF for invoices issued to your company and sends each new one to
+  a phone with the Home Assistant Companion app: one notification per invoice, or one summary
+  when four or more arrive at once. Corrections get their own title.
+- **You choose what the notification says**, from 13 fields: seller, seller NIP, invoice
+  number, gross, net and VAT amounts, issue date, due date, payment form, bank account, items,
+  invoice type and KSeF number. Seller, invoice number, gross amount and due date are
+  preselected. The invoice itself is downloaded only when a field you picked needs it.
+- **Nothing historical, nothing missed, nothing twice.** Adding the integration, or switching
+  notifications back on, only takes note of what is already in KSeF. Invoices that arrive while
+  Home Assistant is down are notified once it is back. Only a power cut in the instant between a
+  notification and its record can repeat that one notification.
+- **A setup wizard** in three steps: KSeF access (production, demo or test environment, the
+  company's NIP and a KSeF token, checked against KSeF before it is saved, with a clear message
+  for a wrong token, a token without the InvoiceRead permission, a blocked account, KSeF asking
+  to slow down and KSeF being unreachable), the notification (phone and fields) and the check
+  interval. Options change the phone, the fields and the interval later. When KSeF stops
+  accepting the token, Home Assistant asks for a new one, and nothing already notified is
+  notified again. Several companies, and one company in several environments, can be added.
+- **Entities:** a *Notifications* switch (off means no contact with KSeF at all), a *Last
+  invoice* sensor with the selected fields as attributes (kept out of Home Assistant's
+  history), a diagnostic *Last check* sensor that tells "no new invoices" apart from "KSeF has
+  not answered", and a *Check now* button usable once every 10 minutes.
+- **The `ksef_notification_invoice` event** for every new invoice, with the selected fields,
+  for your own automations.
+- **Repair notices** when the phone's notify service is missing or a push fails, and when KSeF
+  blocks access for the company. A diagnostics download with the token, the NIP, the phone and
+  every invoice value hidden.
+- **Kind to KSeF's limits.** Measured at the default interval with every field selected: at
+  most 4 of the 20 invoice queries and 12 of the 64 downloads KSeF allows per hour. When KSeF
+  asks to slow down, the next check waits as long as it says; an outage only delays checks.
+- **No invoice archive.** No invoice XML, PDF or database on disk; Home Assistant's storage
+  holds only a timestamp and short hashes of the invoices already handled, and KSeF session
+  tokens stay in memory. Invoice XML is read with a hardened parser.
+- **Polish and English** throughout: the wizard, the entities, the repair notices and the
+  notifications, with Polish amounts and dates when Home Assistant is in Polish. In Polish the
+  integration is called "Powiadomienia KSeF".
+- An icon and logo of its own, shipped with the integration. They deliberately do not use the
+  KSeF or Ministry of Finance logo.
+- Documentation: installation, getting a KSeF token, screenshots, privacy (including how to keep
+  invoice data out of Home Assistant's database) and troubleshooting in the README; every option
+  and the event payload in `docs/CONFIG.md`; the design in `docs/ARCHITECTURE.md`; the KSeF API
+  as verified on KSeF's test environment, with its limits and failure behaviour, in
+  `docs/KSEF_API.md`.
 
 ## [0.1.0] - 2026-10-06
 
-The development baseline: the design is complete and the integration installs, but it does not
+Never released (no tag, no GitHub release). The development baseline: the design is complete and the integration installs, but it does not
 check KSeF or notify anything yet — adding it ends with *"The setup wizard is not implemented
 yet"*.
 
@@ -135,4 +98,3 @@ yet"*.
   button) and the `ksef_notification_invoice` event payload.
 
 [Unreleased]: https://github.com/zyndata/ksef-notification/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/zyndata/ksef-notification/releases/tag/v0.1.0

@@ -1,4 +1,4 @@
-"""Invoice + selection + locale → notification title and body parts (phase 4).
+"""Invoice + selection + locale → notification title and body parts.
 
 Rules in docs/ARCHITECTURE.md § Message formatting.
 

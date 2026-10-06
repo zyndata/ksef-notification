@@ -1,4 +1,4 @@
-"""The selectable-field registry and needs_xml(selection) (phase 4).
+"""The selectable-field registry and needs_xml(selection).
 
 Fields, sources and order in docs/CONFIG.md § Selectable invoice fields.
 """

@@ -1,8 +1,6 @@
 # Configuration
 
-> Option semantics, defaults and bounds were finalized in phase 1 (2026-10-06); the flows were
-> implemented in phase 5 (2026-10-06) and this document checked against them; the entities,
-> notification, event, repair issues and diagnostics were implemented in phase 6 (2026-10-06).
+> Checked against the implementation of version 1.0.0 (2026-10-06).
 
 Each config entry watches the **cost invoices of one company in one KSeF environment**. Several
 entries may exist — different companies, or the same company in PROD and TEST — but a second

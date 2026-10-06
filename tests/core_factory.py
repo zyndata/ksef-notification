@@ -1,4 +1,4 @@
-"""Building core values for the phase 4 tests. Every value is invented."""
+"""Building core values for the core tests. Every value is invented."""
 
 from __future__ import annotations
 
