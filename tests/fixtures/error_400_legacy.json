@@ -1,0 +1,16 @@
+{
+  "exception": {
+    "exceptionDetailList": [
+      {
+        "exceptionCode": 21164,
+        "exceptionDescription": "Faktura o podanym identyfikatorze nie istnieje.",
+        "details": ["Faktura nie została znaleziona."]
+      }
+    ],
+    "referenceNumber": null,
+    "serviceCode": "00-00000000000000000000000000000000-0000000000000000-00",
+    "serviceCtx": "srvSYNTH",
+    "serviceName": "Undefined",
+    "timestamp": "2026-10-06T08:00:00.0000000"
+  }
+}

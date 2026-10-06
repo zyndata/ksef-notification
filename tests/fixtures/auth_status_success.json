@@ -1,0 +1,14 @@
+{
+  "startDate": "2026-10-06T08:00:00.1000000+00:00",
+  "authenticationMethodInfo": {
+    "category": "Token",
+    "code": "token.ksef",
+    "displayName": "Token KSeF"
+  },
+  "status": {
+    "code": 200,
+    "description": "Uwierzytelnianie zakończone sukcesem"
+  },
+  "isTokenRedeemed": false,
+  "refreshTokenValidUntil": null
+}

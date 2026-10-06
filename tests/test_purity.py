@@ -70,7 +70,13 @@ def test_every_layer_is_covered() -> None:
         "tracker.py",
         "xml_parser.py",
     }
-    assert {path.name for path in CLIENT} == {"__init__.py", "api.py", "auth.py", "errors.py"}
+    assert {path.name for path in CLIENT} == {
+        "__init__.py",
+        "api.py",
+        "auth.py",
+        "errors.py",
+        "http.py",
+    }
 
 
 @pytest.mark.parametrize("path", CORE, ids=lambda path: path.name)

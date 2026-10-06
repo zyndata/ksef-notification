@@ -130,9 +130,15 @@ allow-list) is optional and not used — Home Assistant's public IP can change.
 | 500 | Unknown error | Temporary failure |
 | 550 | Cancelled by the system, retry | Temporary failure |
 
+`POST /auth/ksef-token` can answer `400` with **21111** (invalid challenge), **21470** (key
+unknown or withdrawn) or **21405** (input validation) — OpenAPI, checked 2026-10-06. The exact
+status-450 detail strings are listed in the OpenAPI description of `status`; the two a new
+challenge cures are `Nieprawidłowe wyzwanie autoryzacyjne` and `Nieprawidłowy czas tokena`.
+
 Status retention: the operation is queryable for **7 days**, then `410 Gone` (CHANGELOG 2.4.0).
 HTTP `400` code 21304 = unknown reference number. **Observed:** with a KSeF token the status was
-200 on the first poll, about 0.5 s after step 2, in both runs. (XAdES authentication can stay at
+200 on the first poll, about 0.5 s after step 2, in both runs; on 2026-10-06 in phase 3 (the
+integration's own client) it was still 100 at 0.5 s and 200 at 1.5 s. (XAdES authentication can stay at
 100 for a long time while certificate revocation is checked; token authentication does not
 involve that.)
 
@@ -176,7 +182,11 @@ In every case the fallback is the full sequence above with the KSeF token; only 
 of 415/450 (token-related)/470/480, or step-4 21301 "KSeF token revoked", means the user must
 act.
 
-**Other facts.** An access token stays valid until its `exp` even if permissions change or the
+**Other facts.** A protected call refused with `403` carries a `reasonCode` (problem details):
+`missing-permissions` (with `requiredAnyOfPermissions` / `presentPermissions`),
+`security-service-blocked`, `ip-not-allowed`, `insufficient-resource-access`,
+`auth-method-not-allowed`, `context-type-not-allowed` (OpenAPI `ForbiddenProblemDetails`,
+checked 2026-10-06). An access token stays valid until its `exp` even if permissions change or the
 session is revoked (DOCS). A protected call with a bad or expired access token answers `401`
 (**observed** with a malformed token). `DELETE /auth/sessions/current` revokes the session's
 refresh token (204, **observed**).
@@ -305,7 +315,9 @@ Two documented polling strategies (hwm.md):
 Either way, windows must be **contiguous** (end of one = start of the next) and
 **deduplicated by `ksefNumber`**; whether `from` is inclusive is not documented, so the window
 should overlap rather than risk a gap. **Observed:** the HWM was 1 min 59.9 s behind "now" on
-2026-10-06. Choosing between the strategies is a phase 1 decision.
+2026-10-06, and 1 min 57 s in a second run the same day. Whether `from` is inclusive and how
+`pageOffset` behaves past the first page could not be observed: the test NIP has no incoming
+invoices. The design depends on neither. Choosing between the strategies is a phase 1 decision.
 
 ### Paging in practice
 

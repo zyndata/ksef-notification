@@ -1,0 +1,15 @@
+{
+  "title": "Bad Request",
+  "status": 400,
+  "instance": "/v2/invoices/ksef/2222222222-20261006-0000000000A1-01",
+  "detail": "Żądanie jest nieprawidłowe.",
+  "errors": [
+    {
+      "code": 21165,
+      "description": "Faktura o podanym numerze KSeF nie jest jeszcze dostępna.",
+      "details": ["Spróbuj ponownie później."]
+    }
+  ],
+  "timestamp": "2026-10-06T08:00:00.0000000+00:00",
+  "traceId": "00000000000000000000000000000000"
+}

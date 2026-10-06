@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The KSeF client (`client/`): logs in with a KSeF token (RSA-OAEP encryption with the current
+  public key, status polling, redeem), keeps the 15-minute access token alive with the refresh
+  token and falls back to a fresh login when KSeF refuses the refresh, and tells a revoked or
+  under-privileged KSeF token apart from a KSeF outage. It lists cost invoices by the date they
+  were stored in KSeF, page by page, with KSeF's completeness marker, and downloads one
+  invoice's XML. It honours KSeF's `Retry-After` and refuses further calls to a blocked group
+  until it has passed, spaces downloads 250 ms apart, caps response sizes, and counts its own
+  requests per limit group. Tokens are kept in memory only and never logged.
+- Tests for the client against a scripted, offline KSeF, with hand-written synthetic fixtures
+  and a test that rejects any fixture value not on the list of invented NIPs, names, account
+  numbers and amounts.
+
 ## [0.1.0] - 2026-10-06
 
 The development baseline: the design is complete and the integration installs, but it does not

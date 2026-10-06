@@ -1,0 +1,13 @@
+{
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Brak wymaganych uprawnień do wykonania operacji w bieżącym kontekście.",
+  "instance": "/v2/invoices/query/metadata",
+  "reasonCode": "missing-permissions",
+  "security": {
+    "requiredAnyOfPermissions": ["InvoiceRead"],
+    "presentPermissions": ["CredentialsRead"]
+  },
+  "traceId": "00000000000000000000000000000000",
+  "timestamp": "2026-10-06T08:00:00.0000000+00:00"
+}

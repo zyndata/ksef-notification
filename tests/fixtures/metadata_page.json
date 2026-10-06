@@ -1,0 +1,54 @@
+{
+  "hasMore": false,
+  "isTruncated": false,
+  "permanentStorageHwmDate": "2026-10-06T07:58:00.0000000+00:00",
+  "invoices": [
+    {
+      "ksefNumber": "3333333333-20261006-0000000000B2-02",
+      "invoiceNumber": "FV/2026/10/0042",
+      "issueDate": "2026-10-05",
+      "invoicingDate": "2026-10-06T07:40:01.1000000+00:00",
+      "acquisitionDate": "2026-10-06T07:40:02.2000000+00:00",
+      "permanentStorageDate": "2026-10-06T07:41:12.5123456+00:00",
+      "seller": {"nip": "3333333333", "name": "Fikcyjny Dostawca B"},
+      "buyer": {
+        "identifier": {"type": "Nip", "value": "1111111111"},
+        "name": "Testowa Spółka Odbiorca"
+      },
+      "netAmount": 100.0,
+      "grossAmount": 123.0,
+      "vatAmount": 23.0,
+      "currency": "PLN",
+      "invoicingMode": "Online",
+      "invoiceType": "Vat",
+      "formCode": {"systemCode": "FA (3)", "schemaVersion": "1-0E", "value": "FA"},
+      "isSelfInvoicing": false,
+      "hasAttachment": false,
+      "invoiceHash": "c3ludGhldGljLWhhc2gtMDAwMDAwMDAwMDAwMDAwMDA=",
+      "hashOfCorrectedInvoice": null,
+      "thirdSubjects": null,
+      "authorizedSubject": null
+    },
+    {
+      "ksefNumber": "2222222222-20261006-0000000000A1-01",
+      "invoiceNumber": "A/17/2026",
+      "issueDate": "2026-09-30",
+      "invoicingDate": "2026-10-06T07:30:00.0000000+00:00",
+      "acquisitionDate": "2026-10-06T07:30:01.0000000+00:00",
+      "permanentStorageDate": "2026-10-06T07:31:00.0000000+00:00",
+      "seller": {"nip": "2222222222", "name": null},
+      "buyer": {"identifier": {"type": "Nip", "value": "1111111111"}},
+      "netAmount": 1000.0,
+      "grossAmount": 1230.0,
+      "vatAmount": 980.5,
+      "currency": "EUR",
+      "invoicingMode": "Offline",
+      "invoiceType": "Kor",
+      "formCode": {"systemCode": "FA (2)", "schemaVersion": "1-0E", "value": "FA"},
+      "isSelfInvoicing": false,
+      "hasAttachment": true,
+      "invoiceHash": "c3ludGhldGljLWhhc2gtMTExMTExMTExMTExMTExMTE=",
+      "hashOfCorrectedInvoice": "c3ludGhldGljLWhhc2gtMjIyMjIyMjIyMjIyMjIyMjI="
+    }
+  ]
+}

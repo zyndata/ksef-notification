@@ -61,6 +61,16 @@ STORAGE_KEY_PREFIX: Final = DOMAIN
 # Tokens (docs/ARCHITECTURE.md § Token lifecycle)
 TOKEN_MARGIN: Final = timedelta(seconds=60)
 AUTH_POLL_TIMEOUT: Final = timedelta(seconds=30)
+AUTH_POLL_DELAYS: Final = (0.5, 1.0, 2.0, 4.0)  # seconds; the last one repeats
+
+# HTTP to KSeF (docs/KSEF_API.md § Listing invoices, § Rate limits)
+REQUEST_TIMEOUT: Final = timedelta(seconds=30)
+CLOSE_TIMEOUT: Final = timedelta(seconds=5)
+MAX_JSON_BYTES: Final = 4 * 1024 * 1024
+MAX_QUERY_RANGE: Final = timedelta(days=100)
+DEFAULT_RETRY_AFTER: Final = timedelta(seconds=60)  # a 429 without a usable Retry-After
+VALIDATE_WINDOW: Final = timedelta(hours=1)
+VALIDATE_PAGE_SIZE: Final = 10
 
 # Scheduling and rate limits (docs/ARCHITECTURE.md § Coordinator scheduling)
 MIN_QUERY_GAP: Final = timedelta(minutes=10)

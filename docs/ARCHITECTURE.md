@@ -41,8 +41,10 @@ custom_components/ksef_notification/
 ├── client/              # I/O to KSeF; no Home Assistant imports except the session type
 │   ├── __init__.py
 │   ├── errors.py        # exception hierarchy, no user-facing text
-│   ├── auth.py          # public key, challenge, RSA-OAEP, status poll, redeem, refresh; TokenSet
-│   └── api.py           # KsefClient: metadata query with paging, invoice XML fetch, rate gates
+│   ├── http.py          # one request: headers, body cap, error bodies, rate gates, pacing,
+│   │                    #   request counters, timestamps; the injectable Clock
+│   ├── auth.py          # public key, challenge, RSA-OAEP, status poll, redeem, refresh; tokens
+│   └── api.py           # KsefClient: metadata query with paging, invoice XML fetch
 └── core/                # PURE: no I/O, no homeassistant imports, no clock reads (now is a parameter)
     ├── __init__.py
     ├── fields.py        # the field registry: key, source, order; needs_xml(selection)
@@ -74,7 +76,8 @@ class KsefClient:
                              ) -> MetadataResult: ...
         # Subject2, PermanentStorage, Asc, pageSize 250, `to` omitted (up to now),
         # restrictToPermanentStorageHwmDate false. Pages by moving `from` to the last record's
-        # permanentStorageDate and resetting pageOffset (independent of pageOffset semantics).
+        # permanentStorageDate and resetting pageOffset (independent of pageOffset semantics);
+        # only if a full page shares one timestamp, so that `from` cannot move, pageOffset + 1.
         # Returns raw metadata dicts (deduplicated by ksefNumber across pages), the HWM if
         # KSeF sent one, and `complete` = False when max_pages stopped it early.
 
@@ -87,6 +90,11 @@ class KsefClient:
 
     async def async_close(self) -> None: ...
         # Best effort DELETE /auth/sessions/current (timeout 5 s); drops tokens from memory.
+        # Refreshes an expired access token for it, but never authenticates just to revoke.
+
+    def requests_last_hour(self, group: RateLimitGroup) -> int: ...
+        # Requests sent to one limit group in the last 60 min — the last-check sensor's
+        # metadata_requests_last_hour / download_requests_last_hour.
 
 @dataclass(frozen=True)
 class MetadataResult:
@@ -96,16 +104,24 @@ class MetadataResult:
 ```
 
 Token handling is internal to the client (`auth.py`): every protected call first ensures a valid
-access token (see [Token lifecycle](#token-lifecycle)).
+access token (see [Token lifecycle](#token-lifecycle)). The constructor also takes an optional
+`clock` (`utcnow`, `monotonic`, `sleep`) so tests drive time; the integration passes none.
+
+`client/http.py` holds what every call shares. A call to a group that KSeF answered with 429 is
+refused locally until `Retry-After` has passed (seconds, or an HTTP date; missing or unusable →
+`DEFAULT_RETRY_AFTER` = 60 s; capped at 24 h). Downloads are paced `XML_FETCH_GAP` apart at the
+moment they are sent, so a download repeated after a 401 is paced too. Request and error bodies
+are logged by a label (`metadata`, `invoice xml`, …), never by path, because a path can carry a
+KSeF number. JSON bodies are capped at `MAX_JSON_BYTES` = 4 MB, XML at `MAX_XML_BYTES`.
 
 ### Error hierarchy (contract for phase 3)
 
 | Exception | Raised for | Coordinator reaction |
 |---|---|---|
 | `KsefError` | base class | — |
-| `KsefAuthError(reason)` | `reason` ∈ `token_invalid` (450 token-related, 21301 "token revoked"), `no_permission` (415, or 403 on a protected call), `blocked` (470, 480) | `token_invalid`/`no_permission` → `ConfigEntryAuthFailed` (reauth); `blocked` → repair issue, polling stops |
+| `KsefAuthError(reason)` | `reason` ∈ `token_invalid` (450 token-related, 21301 "token revoked" at redeem, 400 21405 at `ksef-token`), `no_permission` (415, or 403 on a protected call), `blocked` (470, 480, 400 21308, 403 with `reasonCode` `security-service-blocked`) | `token_invalid`/`no_permission` → `ConfigEntryAuthFailed` (reauth); `blocked` → repair issue, polling stops |
 | `KsefRateLimitError(retry_after_s, group)` | HTTP 429, or a call attempted while that group is still blocked | Next cycle no sooner than `retry_after_s` |
-| `KsefTemporaryError` | 5xx, timeouts, connection errors, auth status 500/550, status poll not finished in time | Cycle fails (`UpdateFailed`), next cycle at the normal interval |
+| `KsefTemporaryError` | 5xx, timeouts, connection errors, redirects, auth status 425/460/500/550 or an unknown one, status poll not finished in time, any 400 not named in this table (e.g. 21405 on the metadata query) | Cycle fails (`UpdateFailed`), next cycle at the normal interval |
 | `KsefMalformedResponseError` | unparsable JSON, missing required keys, oversize body | As temporary |
 | `KsefInvoiceNotReadyError` | 400 code 21165 on the XML fetch | That invoice is deferred |
 | `KsefInvoiceNotFoundError` | 400 code 21164 on the XML fetch | That invoice is notified without XML fields |
@@ -337,7 +353,7 @@ public-key certificate until its `validTo`.
 
 1. Access token valid for ≥ `TOKEN_MARGIN` (60 s) → use it.
 2. Else refresh token valid for ≥ `TOKEN_MARGIN` → `POST /auth/token/refresh`. On `400`
-   21301/21304 or `401` → drop both tokens, go to 3.
+   21301/21304, `401` or `403` → drop both tokens, go to 3 (400 21308 → `blocked`).
 3. Else **full authentication**: public key (cached) → challenge → `ksef-token` → status poll →
    redeem.
 
@@ -345,17 +361,19 @@ With the poll interval ≥ 15 minutes and a 15-minute access token, expect one r
 and one full authentication per 7 days (and one per Home Assistant start).
 
 **Status poll:** after 0.5 s, then 1, 2, 4, 4, 4 … s, for at most `AUTH_POLL_TIMEOUT` = 30 s
-(observed: done on the first poll). Status 100 past the timeout → `KsefTemporaryError`.
+(observed: done on the first poll in phase 0, on the second in phase 3). Status 100 past the
+timeout → `KsefTemporaryError`. Concurrent callers share one authentication (a lock).
 
 **Outcomes of a full authentication:**
 
 | Result | Error | User sees |
 |---|---|---|
 | 200 → redeemed | — | — |
-| 450 with "invalid challenge" or "invalid token time" | retried once immediately with a new challenge; again → `KsefTemporaryError` | nothing (a failed check on the diagnostic sensor) |
+| 450 with "invalid challenge" or "invalid token time" (`Nieprawidłowe wyzwanie autoryzacyjne`, `Nieprawidłowy czas tokena`), or 400 21111 at `ksef-token` | retried once immediately with a new challenge; again → `KsefTemporaryError` | nothing (a failed check on the diagnostic sensor) |
 | 450 other details, redeem 21301 "KSeF token revoked" | `KsefAuthError("token_invalid")` | Home Assistant's re-authentication flow |
 | 415 | `KsefAuthError("no_permission")` | Re-authentication flow; its description says the token needs `InvoiceRead` |
-| 470, 480 | `KsefAuthError("blocked")` | A repair issue; polling stops until the entry is reloaded |
+| 470, 480; 400 21308 at redeem or refresh | `KsefAuthError("blocked")` | A repair issue; polling stops until the entry is reloaded |
+| 400 21405 at `ksef-token` (the token fails KSeF's input validation) | `KsefAuthError("token_invalid")` | Re-authentication flow |
 | 400 21470 at `ksef-token` | reload the key list, retry once | nothing |
 | 500, 550, 5xx, timeout | `KsefTemporaryError` | a failed check on the diagnostic sensor |
 
