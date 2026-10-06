@@ -16,6 +16,7 @@ the observation is marked **observed** and was made on the TEST environment.
 | **HANDBOOK** | "Podręcznik KSeF 2.0, cz. I — Rozpoczęcie korzystania z KSeF", Ministry of Finance, [PDF](https://ksef.podatki.gov.pl/media/dmrfdixs/podrecznik-ksef-20-cz-i-rozpoczecie-korzystania-z-ksef-06082026.pdf) | edition of 2026-08-06 |
 | **XSD** | Invoice schemas FA(2) and FA(3) in [faktury/schemy/FA](https://github.com/CIRFMF/ksef-api/tree/main/faktury/schemy/FA) | as in DOCS |
 | **PROBE** | A live run against TEST with a test-environment KSeF token: two authentications, one refresh, one metadata query, session revocation, invalid-token calls | 2026-10-06 |
+| **FAILURES** | Failure paths provoked on TEST with the integration's own client: a fictitious seller authenticated with MF's self-signed test certificate generated KSeF tokens for its own context, revoked one, lowered its own rate limits (`/testdata/rate-limits`) and blocked its own context (`/testdata/context/block`); 19 synthetic invoices issued to the test NIP (paging, and a real Home Assistant run). See [Failure behaviour, observed](#failure-behaviour-observed) | 2026-10-06 |
 
 All three OpenAPI documents agree on every endpoint, field and limit used below; where this
 document quotes OpenAPI it means all three.
@@ -134,6 +135,9 @@ allow-list) is optional and not used — Home Assistant's public IP can change.
 unknown or withdrawn) or **21405** (input validation) — OpenAPI, checked 2026-10-06. The exact
 status-450 detail strings are listed in the OpenAPI description of `status`; the two a new
 challenge cures are `Nieprawidłowe wyzwanie autoryzacyjne` and `Nieprawidłowy czas tokena`.
+**Observed** (FAILURES): a revoked KSeF token gives 450 with the detail `Token unieważniony.`; a
+blocked context gives 480 with `Podejrzenie incydentu bezpieczeństwa. Skontaktuj się z
+Ministerstwem Finansów przez formularz zgłoszeniowy.`
 
 Status retention: the operation is queryable for **7 days**, then `410 Gone` (CHANGELOG 2.4.0).
 HTTP `400` code 21304 = unknown reference number. **Observed:** with a KSeF token the status was
@@ -174,7 +178,8 @@ keeps its original expiry. So after at most 7 days a full authentication is unav
 | Response | When | **Observed** |
 |---|---|---|
 | `400` code **21301**, detail "authentication status (425) does not permit refreshing" | The session was revoked | yes — after `DELETE /auth/sessions/current` |
-| `400` code 21301, "KSeF token revoked" | The KSeF token was revoked | documented |
+| `400` code 21301, `Token KSeF został unieważniony.` | The KSeF token was revoked | yes (FAILURES) |
+| `400` code 21301, "authentication status (480) does not permit refreshing" | The context was blocked | yes (FAILURES) |
 | `400` code 21304 | Authentication operation not found | documented |
 | `401` | Refresh token malformed, or (by JWT semantics) expired | yes — malformed |
 
@@ -315,9 +320,21 @@ Two documented polling strategies (hwm.md):
 Either way, windows must be **contiguous** (end of one = start of the next) and
 **deduplicated by `ksefNumber`**; whether `from` is inclusive is not documented, so the window
 should overlap rather than risk a gap. **Observed:** the HWM was 1 min 59.9 s behind "now" on
-2026-10-06, and 1 min 57 s in a second run the same day. Whether `from` is inclusive and how
-`pageOffset` behaves past the first page could not be observed: the test NIP has no incoming
-invoices. The design depends on neither. Choosing between the strategies is a phase 1 decision.
+2026-10-06, and 1 min 57 s in a second run the same day (1 min 59.7 s in FAILURES, twice).
+Choosing between the strategies is a phase 1 decision.
+
+**Observed in FAILURES** (12 invoices stored within seconds, `pageSize` 10):
+
+- **`from` is inclusive, to the microsecond.** A query with `from` equal to a record's
+  `permanentStorageDate` returns that record; with `from` one microsecond later it does not.
+- **`pageOffset` is a page index.** `pageOffset` 0 returned records 1–10 with `hasMore` true,
+  `pageOffset` 1 records 11–12 with `hasMore` false, `pageOffset` 2 nothing; no overlap, no gap,
+  the same order as one query with `pageSize` 250.
+- `permanentStorageDate` came with **six** fractional digits (`…:SS.ffffff+00:00`); the examples
+  in the OpenAPI show seven. The client parses either.
+
+The design depends on neither inclusivity nor `pageOffset` (it overlaps windows and pages by
+moving `from`); both are now confirmed rather than assumed.
 
 ### Paging in practice
 
@@ -403,9 +420,13 @@ Checked 2026-10-06 — DOCS [limity/limity-api.md](https://github.com/CIRFMF/kse
 the limits can be read at runtime instead of hard-coded.
 
 Conflict in the documentation: limity-api.md still says TEST limits are ten times higher than
-PROD, but CHANGELOG 2.5.0 (TEST 2026-05-06) says they were made equal. Assume PROD values on
-TEST. TEST also offers `POST /testdata/rate-limits/production`, `POST /testdata/rate-limits`
-(custom values) and `DELETE /testdata/rate-limits` (reset) — useful for provoking 429 in tests.
+PROD, but CHANGELOG 2.5.0 (TEST 2026-05-06) says they were made equal. **Observed** (FAILURES,
+`GET /rate-limits` on TEST): equal to PROD — `invoiceMetadata` 8 / 16 / 20, `invoiceDownload`
+8 / 16 / 64, `other` 10 / 30 / 120, `anonymous` 60 / s; also `invoiceSend` 10 / 30 / 180 and
+`onlineSession` 10 / 30 / 120 per seller context. TEST also offers
+`POST /testdata/rate-limits/production`, `POST /testdata/rate-limits` (custom values, for the
+authenticated context) and `DELETE /testdata/rate-limits` (reset) — used to provoke a real 429,
+below.
 
 Higher limits are announced for **20:00–06:00**, but their values have not been published
 (limity-api.md §4). Do not rely on them.
@@ -431,6 +452,23 @@ Higher limits are announced for **20:00–06:00**, but their values have not bee
   that context's limits.
 - Therefore: honour `Retry-After` exactly, never retry before it elapses, never retry in a loop.
 
+**Observed** (FAILURES, metadata limit lowered to 2 / h for the test context): `Retry-After`
+was **3565 s** — the time until the oldest request in the sliding hour drops out, so a 429 on
+the hourly limit can mean almost an hour. Both body shapes, verbatim except the trace id:
+
+```json
+{"title":"Too Many Requests","status":429,"detail":"Przekroczono limit 2 żądań na godzinę. Spróbuj ponownie po 59 minutach i 11 sekundach.","instance":"/v2/invoices/query/metadata","traceId":"…","timestamp":"2026-10-06T15:48:30.9799552+00:00"}
+```
+
+```json
+{"status":{"code":429,"description":"Too Many Requests","details":["Przekroczono limit 2 żądań na godzinę. Spróbuj ponownie po 59 minutach i 11 sekundach."]}}
+```
+
+The first with `X-Error-Format: problem-details` (but `Content-Type: application/json`, not
+`application/problem+json`), the second without it. Three further requests inside the
+window did not lengthen `Retry-After` on TEST (it only counted down); production may penalise
+harder, as documented. `DELETE /testdata/rate-limits` lifted the block at once.
+
 ---
 
 ## Push or webhook
@@ -443,6 +481,29 @@ Higher limits are announced for **20:00–06:00**, but their values have not bee
   scheduled (cyclic) or mixed synchronisation (limity-api.md "Tryby synchronizacji").
 
 Polling is the only way to learn about a new invoice; it is the design, not an oversight.
+
+---
+
+## Failure behaviour, observed
+
+Provoked on TEST on 2026-10-06 (FAILURES) with the integration's own `KsefClient`; each line is
+what KSeF answered and what the client made of it. The integration-level reaction to each
+(scheduling, re-authentication, repair issue, exactly-once) is in
+[ARCHITECTURE.md](ARCHITECTURE.md#failure-paths-measured).
+
+| Failure, how it was provoked | What KSeF answered | Client result |
+|---|---|---|
+| **KSeF token revoked** (`DELETE /tokens/{ref}` by the context owner; status `Revoking` → `Revoked` within 2 s) | The access token already held **kept working** (metadata 200). Refresh: `400` 21301 `Token KSeF został unieważniony.` Full authentication: status **450** `Token unieważniony.` | Refresh → full authentication → `KsefAuthError(token_invalid)`. So a revoked token is noticed at the next refresh, at most one access-token lifetime later |
+| **Token without `InvoiceRead`** (generated with `CredentialsRead` only) | Authentication succeeds; metadata `403`, `reasonCode` `missing-permissions` | `KsefAuthError(no_permission)` |
+| **Session revoked** (`DELETE /auth/sessions/current`) | Held access token kept working; refresh `400` 21301 "(425) does not permit refreshing" | Full authentication, query succeeds — nothing for the user |
+| **Malformed refresh token** | Refresh `401` | Full authentication, query succeeds |
+| **Context blocked** (`POST /testdata/context/block`) | Held access token kept working; refresh `400` 21301 "(480) …"; full authentication status **480** | `KsefAuthError(blocked)`; after `…/unblock` a full authentication succeeds again |
+| **Access token expired** (`validUntil` passed by 10 s; then by 5 min 57 s) | 10 s past: still **accepted** (metadata 200) — KSeF tolerates some clock skew past `exp` (consistent with the usual 5-minute JWT skew). 5 min 57 s past: `401` | Normally never sent: the client refreshes when less than `TOKEN_MARGIN` (60 s) is left. Sent anyway (a client clock behind): `401` → refresh → the query repeated once, 200 |
+| **HTTP 429** (metadata limit set to 2 / h) | `429`, `Retry-After: 3565` (see [When a limit is exceeded](#when-a-limit-is-exceeded)) | `KsefRateLimitError`; **one** request reached KSeF, the next four were refused locally |
+| **Outage** | Not provokable. TEST's announced 16:00–18:00 maintenance window was not in effect at 17:46 local time; every request answered | Simulated only (`tests/test_resilience.py`) |
+
+Not provokable on TEST and therefore simulated only: a refresh token reaching its 7-day expiry,
+a multi-hour outage, a restart in the middle of a check.
 
 ---
 
@@ -462,11 +523,24 @@ Assistant instance and public IP; poll interval `T`; cost invoices only (`Subjec
 
 ### Worst case per hour, at the minimum interval T = 15 min
 
-| Group | Used | Limit | Share |
-|---|---|---|---|
-| invoiceMetadata | 4 | 20 / h, 16 / min | 20 % |
-| auth | 4 refreshes (+ ≤ 5 for a full authentication about once a week) | 60 / s | negligible |
-| invoiceDownload | ≤ 4 × *k*, with *k* the per-cycle cap on XML fetches | 64 / h, 16 / min, 8 / s | *k* = 10 → 40 / h = 63 % |
+**Measured** (phase 8, 2026-10-06): the real integration over a simulated day in Home Assistant's
+test harness, time stepped by the minute, every field selected, three new FA(3) invoices before
+every check (the most that are notified individually, so the most downloads), requests counted
+in sliding windows as KSeF counts them (`tests/test_budget.py`). The per-cycle cap on XML
+fetches is *k* = 3, the combine threshold fixed in phase 1.
+
+| Group | Peak per s / min / h | Limit per s / min / h | Share of the hourly limit | In the day |
+|---|---|---|---|---|
+| invoiceMetadata | 1 / 1 / **4** | 8 / 16 / 20 | 20 % | 97 (baseline + 96 checks) |
+| invoiceDownload | 3 / 3 / **12** | 8 / 16 / 64 | 19 % | 288 |
+| auth | 5 / s (the setup's authentication) | 60 / s | — | 1 full authentication (5 requests) + 96 refreshes |
+
+With *Check now* pressed at every chance (every 10 minutes) and three invoices each time:
+invoiceMetadata **6 / h** (30 %), invoiceDownload **18 / h** (28 %), nothing above 3 / min. A
+burst of 300 invoices in one check is combined and downloads nothing. A simulated week costs
+exactly **two** full authentications (setup, and day 7 when the refresh token runs out) and one
+refresh per check. A real Home Assistant on TEST showed the same per-check costs on its
+last-check sensor ([ARCHITECTURE.md](ARCHITECTURE.md#resource-and-request-budget)).
 
 Consequences for the design (decided in phase 1, constrained here):
 
@@ -478,7 +552,8 @@ Consequences for the design (decided in phase 1, constrained here):
 2. **XML fetches need a per-cycle cap.** Several new invoices at once with an XML field selected
    would otherwise burst past 16 / min or 64 / h. With a cap *k* ≤ 12 the hourly worst case at
    T = 15 min stays ≤ 48 / h (75 %); invoices beyond the cap must be deferred to the next cycle
-   or notified without their XML fields.
+   or notified without their XML fields. **Implemented as *k* = 3:** from four new invoices on,
+   one combined notification without XML fields.
 3. **XML fetches must be paced** at ≥ 125 ms apart (8 / s). Observed response times were
    40–100 ms, so back-to-back sequential requests would exceed 8 / s.
 4. **A token lasts a week, an access token 15 minutes**: at T ≥ 15 min, expect one refresh per

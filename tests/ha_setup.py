@@ -9,11 +9,13 @@ high-water mark two minutes behind now, as observed on TEST.
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta
 from typing import Any
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import SOURCE_REAUTH
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
@@ -31,6 +33,8 @@ from custom_components.ksef_notification.const import (
     DEFAULT_FIELDS,
     DOMAIN,
     ENV_TEST,
+    KEY_CHECK_NOW,
+    KEY_LAST_CHECK,
 )
 
 from .ksef_fake import (
@@ -131,10 +135,58 @@ async def advance(hass: HomeAssistant, freezer: FrozenDateTimeFactory, delta: ti
     await settle(hass)
 
 
+async def minutes(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, count: int
+) -> AsyncIterator[int]:
+    """Move time forward one minute at a time, yielding the minute number before each step.
+
+    `advance` lets one due timer fire per call, so a check scheduled too soon would hide inside
+    a long jump; stepping by the minute lets every timer fire when it is due.
+    """
+    for minute in range(count):
+        yield minute
+        await advance(hass, freezer, timedelta(minutes=1))
+
+
 def entity_id(hass: HomeAssistant, entry: MockConfigEntry, platform: str, key: str) -> str:
     found = er.async_get(hass).async_get_entity_id(platform, DOMAIN, f"{entry.entry_id}_{key}")
     assert found is not None, key
     return found
+
+
+def number(n: int) -> str:
+    """The KSeF number `invoice(n)` and `World.add(n)` give invoice n."""
+    return f"3333333333-20261006-{n:012X}-{n % 256:02X}"
+
+
+def state(hass: HomeAssistant, entry: MockConfigEntry, platform: str, key: str) -> State:
+    found = hass.states.get(entity_id(hass, entry, platform, key))
+    assert found is not None
+    return found
+
+
+def last_check(hass: HomeAssistant, entry: MockConfigEntry) -> dict[str, Any]:
+    """The last-check sensor's attributes."""
+    return dict(state(hass, entry, "sensor", KEY_LAST_CHECK).attributes)
+
+
+def reauth_flows(hass: HomeAssistant) -> list[Any]:
+    return [
+        flow
+        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+        if flow["context"]["source"] == SOURCE_REAUTH
+    ]
+
+
+async def press(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """The Check now button."""
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": entity_id(hass, entry, "button", KEY_CHECK_NOW)},
+        blocking=True,
+    )
+    await settle(hass)
 
 
 def storage_key(entry: MockConfigEntry) -> str:

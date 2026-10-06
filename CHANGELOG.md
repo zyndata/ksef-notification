@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Proof that the integration stays within KSeF's limits and survives its failures. Measured
+  over a simulated day with every field selected: at most 4 of KSeF's 20 invoice-list requests
+  and 12 of its 64 invoice downloads per hour (6 and 18 when *Check now* is pressed at every
+  chance); a week costs two logins. Tested end to end: an expired or refused session, a refresh
+  token running out after seven days, a revoked KSeF token, a blocked account, KSeF asking to
+  slow down, a six-hour outage and a restart in the middle of a check. After each one the
+  integration recovers by itself where it can, asks for a new token only when the token is the
+  problem, and notifies every invoice exactly once — except after a power cut in the instant
+  between a notification and its record, when that one notification can come twice. Memory
+  stays flat over a week, and nothing blocks Home Assistant's event loop.
+- The KSeF documentation in `docs/KSEF_API.md` now records what KSeF actually does in each of
+  those failures, provoked on the KSeF test environment: the answers to a revoked token, a
+  blocked account and an exceeded limit, how long KSeF asks to wait, and how its paging and date
+  filter behave.
 - Polish translation of everything the integration shows: the setup wizard, options,
   re-authentication, errors, entities, repair notices and the notifications themselves. In
   Polish the integration is called "Powiadomienia KSeF". Notifications follow Home Assistant's

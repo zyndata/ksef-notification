@@ -54,9 +54,15 @@ ROUTES: dict[str, tuple[str, re.Pattern[str]]] = {
 AUTH_ROUTES = ("keys", "challenge", "init", "status", "redeem")
 
 
+@cache
+def _fixture_text(name: str) -> str:
+    return (FIXTURES / name).read_text(encoding="utf-8")
+
+
 def fixture(name: str) -> Any:
-    """A JSON fixture, freshly loaded (tests may modify it)."""
-    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    """A JSON fixture, freshly parsed (tests may modify it). Files are read once per run, so
+    a test with Home Assistant's blocking-call detection on can serve them from the loop."""
+    return json.loads(_fixture_text(name))
 
 
 def stamp(value: datetime) -> str:
@@ -102,6 +108,8 @@ class Call:
     query: dict[str, str]
     body: Any
     headers: dict[str, str] = field(repr=False)
+    #: The fake clock's time when the request arrived.
+    at: datetime | None = None
 
     @property
     def bearer(self) -> str | None:
@@ -220,6 +228,8 @@ class FakeKsef:
         self.calls: list[Call] = []
         self._scripts: dict[str, list[ReplySpec]] = {}
         self._issued = 0
+        for path in FIXTURES.glob("*.json"):
+            _fixture_text(path.name)
         for method in ("get", "post", "delete"):
             mocker.request(method, re.compile(".*"), side_effect=self._dispatch)
         self.script("keys", Reply(json=[key_entry()]))
@@ -231,9 +241,18 @@ class FakeKsef:
         self.script("metadata", metadata_reply([]))
         self.script("xml", Reply(body=(FIXTURES / "invoice_fa3.xml").read_bytes()))
         self.script("revoke", Reply(status=204))
+        self._defaults = {route: script[-1] for route, script in self._scripts.items()}
 
     def script(self, route: str, *replies: ReplySpec) -> None:
         self._scripts[route] = list(replies)
+
+    def default(self, route: str) -> ReplySpec:
+        """The healthy answer a route starts with, to end a scripted failure."""
+        return self._defaults[route]
+
+    def heal(self, *routes: str) -> None:
+        for route in routes:
+            self.script(route, self.default(route))
 
     def routes(self) -> list[str]:
         return [call.route for call in self.calls]
@@ -265,7 +284,9 @@ class FakeKsef:
             for name, (route_method, pattern) in ROUTES.items()
             if route_method == method.upper() and pattern.fullmatch(path)
         )
-        call = Call(route, method.upper(), path, dict(url.query), data, headers)
+        call = Call(
+            route, method.upper(), path, dict(url.query), data, headers, self.clock.utcnow()
+        )
         self.calls.append(call)
         script = self._scripts[route]
         spec = script.pop(0) if len(script) > 1 else script[0]

@@ -104,6 +104,35 @@ Some tests check the shape of the repository rather than behaviour:
 | `test_repository.py` | no tracked document links to a git-ignored local working file |
 | `test_dev_env.py` | the uv Python location stays stable on Linux |
 
+### Budget and failure tests
+
+`tests/test_budget.py` counts every request the integration sends over a simulated day and week
+and asserts the peaks per KSeF limit group in sliding windows — the same numbers
+`docs/KSEF_API.md` and `docs/ARCHITECTURE.md` quote. A change that costs more requests fails
+there; update the documents together with the numbers. It also asserts that memory held by the
+integration does not grow over a week. `tests/test_resilience.py` replays each failure path
+end to end with the replies KSeF TEST gave when the failure was provoked.
+
+Tests that are about *how often* something happens step time by the minute (`ha_setup.minutes`):
+`advance` lets only one due timer fire per jump, so a check scheduled too soon would hide inside
+a 15-minute jump.
+
+### Provoking failures on TEST
+
+KSeF TEST has endpoints meant for this, all acting on the **authenticated context** (so they need
+an identity that owns a context, not just a read-only token):
+
+| Failure | How |
+|---|---|
+| Revoked KSeF token | `POST /tokens` (generate one with `InvoiceRead`), then `DELETE /tokens/{referenceNumber}` |
+| Token without `InvoiceRead` | `POST /tokens` with another permission only |
+| HTTP 429 | `POST /testdata/rate-limits` with lowered values; `DELETE /testdata/rate-limits` resets them and lifts the block |
+| Blocked account (status 480) | `POST /testdata/context/block` / `…/unblock` with `{"contextIdentifier": {"type": "Nip", "value": …}}` |
+
+An identity that owns a context can be created on TEST with a self-signed certificate (MF's
+official clients include a test-certificate tool). Use only invented NIPs and invented invoice
+content, and print status codes rather than bodies: TEST data is shared between integrators.
+
 ## Deploying into a test Home Assistant instance
 
 Use the KSeF **test** environment for every manual test. Its data is fictional by definition;

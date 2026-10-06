@@ -13,13 +13,14 @@ from unittest.mock import patch
 import aiohttp
 import pytest
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, ServiceCall
+from pytest_homeassistant_custom_component.common import async_capture_events, async_mock_service
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.ksef_notification.client import Clock, KsefClient
-from custom_components.ksef_notification.const import ENV_TEST
+from custom_components.ksef_notification.const import ENV_TEST, EVENT_INVOICE
 
-from .ha_setup import HaClock
+from .ha_setup import PHONE, HaClock, World
 from .ksef_fake import KSEF_TOKEN, NIP, START, FakeClock, FakeKsef, signing_material
 
 # Built now, before any test freezes time: cryptography's certificate builder refuses
@@ -61,6 +62,23 @@ def ha_ksef(
     factory = partial(KsefClient, clock=Clock(clock.utcnow, clock.monotonic, clock.sleep))
     with patch("custom_components.ksef_notification.KsefClient", factory):
         yield FakeKsef(aioclient_mock, clock)
+
+
+@pytest.fixture
+def world(ha_ksef: FakeKsef) -> World:
+    """KSeF's invoice store behind the metadata route."""
+    return World(ha_ksef)
+
+
+@pytest.fixture
+def pushes(hass: HomeAssistant) -> list[ServiceCall]:
+    """Every call of the configured phone's notify service."""
+    return async_mock_service(hass, "notify", PHONE)
+
+
+@pytest.fixture
+def events(hass: HomeAssistant) -> list[Event]:
+    return async_capture_events(hass, EVENT_INVOICE)
 
 
 @pytest.fixture

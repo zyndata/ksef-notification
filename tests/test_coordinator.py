@@ -10,11 +10,10 @@ from __future__ import annotations
 import json
 import re
 from datetime import timedelta
-from typing import Any
 
 import pytest
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryDisabler, ConfigEntryState
+from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, ServiceCall, State
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -25,7 +24,6 @@ from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
-    async_capture_events,
     async_mock_service,
     mock_restore_cache,
 )
@@ -33,7 +31,6 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.ksef_notification.const import (
     CONF_FIELDS,
     DOMAIN,
-    EVENT_INVOICE,
     ISSUE_ACCOUNT_BLOCKED,
     ISSUE_NOTIFY_SERVICE_MISSING,
     KEY_CHECK_NOW,
@@ -51,9 +48,14 @@ from .ha_setup import (
     World,
     advance,
     entity_id,
+    last_check,
     make_entry,
+    number,
+    press,
+    reauth_flows,
     settle,
     setup,
+    state,
     storage_key,
     stored,
 )
@@ -79,35 +81,6 @@ XML_OK = Reply(body=(FIXTURES / "invoice_fa3.xml").read_bytes())
 FROM_FORMAT = "microseconds"
 
 
-@pytest.fixture
-def world(ha_ksef: FakeKsef) -> World:
-    return World(ha_ksef)
-
-
-@pytest.fixture
-def pushes(hass: HomeAssistant) -> list[ServiceCall]:
-    return async_mock_service(hass, "notify", PHONE)
-
-
-@pytest.fixture
-def events(hass: HomeAssistant) -> list[Any]:
-    return async_capture_events(hass, EVENT_INVOICE)
-
-
-def _number(n: int) -> str:
-    return f"3333333333-20261006-{n:012X}-{n % 256:02X}"
-
-
-def _state(hass: HomeAssistant, entry: MockConfigEntry, platform: str, key: str) -> State:
-    state = hass.states.get(entity_id(hass, entry, platform, key))
-    assert state is not None
-    return state
-
-
-def _check(hass: HomeAssistant, entry: MockConfigEntry) -> dict[str, Any]:
-    return dict(_state(hass, entry, "sensor", KEY_LAST_CHECK).attributes)
-
-
 def _messages(pushes: list[ServiceCall]) -> list[str]:
     return [call.data["message"] for call in pushes]
 
@@ -122,31 +95,13 @@ async def _switch(hass: HomeAssistant, entry: MockConfigEntry, on: bool) -> None
     await settle(hass)
 
 
-async def _press(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    await hass.services.async_call(
-        "button",
-        "press",
-        {"entity_id": entity_id(hass, entry, "button", KEY_CHECK_NOW)},
-        blocking=True,
-    )
-    await settle(hass)
-
-
-def _restore_switch(hass: HomeAssistant, entry: MockConfigEntry, state: str) -> None:
+def _restore_switch(hass: HomeAssistant, entry: MockConfigEntry, position: str) -> None:
     """Register the switch under a known id with a last state, as after a restart."""
     entry.add_to_hass(hass)
     switch = er.async_get(hass).async_get_or_create(
         "switch", DOMAIN, f"{entry.entry_id}_{KEY_NOTIFICATIONS}", config_entry=entry
     )
-    mock_restore_cache(hass, [State(switch.entity_id, state)])
-
-
-def _reauth_flows(hass: HomeAssistant) -> list[Any]:
-    return [
-        flow
-        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
-        if flow["context"]["source"] == SOURCE_REAUTH
-    ]
+    mock_restore_cache(hass, [State(switch.entity_id, position)])
 
 
 # --- setup and the first check ----------------------------------------------------------------
@@ -165,10 +120,10 @@ async def test_setup_creates_the_entities_and_takes_a_baseline(
     entry = await setup(hass)
 
     assert entry.state is ConfigEntryState.LOADED
-    assert _state(hass, entry, "switch", KEY_NOTIFICATIONS).state == STATE_ON
-    assert _state(hass, entry, "sensor", KEY_LAST_INVOICE).state == STATE_UNKNOWN
-    assert _state(hass, entry, "button", KEY_CHECK_NOW)
-    check = _state(hass, entry, "sensor", KEY_LAST_CHECK)
+    assert state(hass, entry, "switch", KEY_NOTIFICATIONS).state == STATE_ON
+    assert state(hass, entry, "sensor", KEY_LAST_INVOICE).state == STATE_UNKNOWN
+    assert state(hass, entry, "button", KEY_CHECK_NOW)
+    check = state(hass, entry, "sensor", KEY_LAST_CHECK)
     assert dt_util.parse_datetime(check.state) == START
     assert check.attributes["outcome"] == "ok"
     assert check.attributes["new_invoices"] == 0
@@ -227,7 +182,7 @@ async def test_a_new_invoice_is_notified_with_the_selected_fields(
             "title": "New cost invoice",
             "message": BODY,
             "data": {
-                "tag": f"ksef_{ksef_hash(_number(2))}",
+                "tag": f"ksef_{ksef_hash(number(2))}",
                 "group": "ksef_notification",
                 "channel": "KSeF",
                 "clickAction": f"entityId:{sensor_id}",
@@ -246,7 +201,7 @@ async def test_a_new_invoice_is_notified_with_the_selected_fields(
         {
             "entry_id": entry.entry_id,
             "environment": "test",
-            "ksef_number": _number(2),
+            "ksef_number": number(2),
             "acquisition_date": "2026-10-06T07:40:02.200000+00:00",
             "combined": False,
             "notified": True,
@@ -254,12 +209,12 @@ async def test_a_new_invoice_is_notified_with_the_selected_fields(
             "fields": fields,
         }
     ]
-    last = _state(hass, entry, "sensor", KEY_LAST_INVOICE)
+    last = state(hass, entry, "sensor", KEY_LAST_INVOICE)
     assert dt_util.parse_datetime(last.state) == dt_util.parse_datetime("2026-10-06T07:40:02+00:00")
     assert {key: last.attributes[key] for key in fields} == fields
-    assert last.attributes["ksef_number"] == _number(2)
-    assert _check(hass, entry)["new_invoices"] == 1
-    assert _check(hass, entry)["download_requests_last_hour"] == 1
+    assert last.attributes["ksef_number"] == number(2)
+    assert last_check(hass, entry)["new_invoices"] == 1
+    assert last_check(hass, entry)["download_requests_last_hour"] == 1
 
 
 async def test_metadata_only_selection_downloads_nothing(
@@ -311,16 +266,16 @@ async def test_three_invoices_are_notified_one_by_one_oldest_first(
     events: list,
 ) -> None:
     await setup(hass)
-    for number, ago in ((3, 1), (2, 3), (4, 2)):
-        world.add(number, ago=timedelta(minutes=ago))
+    for n, ago in ((3, 1), (2, 3), (4, 2)):
+        world.add(n, ago=timedelta(minutes=ago))
     freezer.tick(timedelta(minutes=10))
     await advance(hass, freezer, timedelta(minutes=5))
 
     assert ha_ksef.count("xml") == 3
     assert len(pushes) == 3
-    assert [event.data["ksef_number"] for event in events] == [_number(2), _number(4), _number(3)]
+    assert [event.data["ksef_number"] for event in events] == [number(2), number(4), number(3)]
     assert [call.data["data"]["tag"] for call in pushes] == [
-        f"ksef_{ksef_hash(_number(n))}" for n in (2, 4, 3)
+        f"ksef_{ksef_hash(number(n))}" for n in (2, 4, 3)
     ]
 
 
@@ -333,8 +288,8 @@ async def test_four_invoices_make_one_combined_notification_without_downloads(
     events: list,
 ) -> None:
     entry = await setup(hass)
-    for number in range(2, 6):
-        world.add(number, ago=timedelta(seconds=60 - number))
+    for n in range(2, 6):
+        world.add(n, ago=timedelta(seconds=60 - n))
     await advance(hass, freezer, INTERVAL)
 
     assert ha_ksef.count("xml") == 0
@@ -344,8 +299,8 @@ async def test_four_invoices_make_one_combined_notification_without_downloads(
     assert pushes[0].data["data"]["tag"] == f"ksef_combined_{entry.entry_id}"
     assert [event.data["combined"] for event in events] == [True] * 4
     assert {event.data["details"] for event in events} == {"unavailable"}
-    assert _check(hass, entry)["new_invoices"] == 4
-    assert _state(hass, entry, "sensor", KEY_LAST_INVOICE).attributes["ksef_number"] == _number(5)
+    assert last_check(hass, entry)["new_invoices"] == 4
+    assert state(hass, entry, "sensor", KEY_LAST_INVOICE).attributes["ksef_number"] == number(5)
 
 
 async def test_nothing_is_notified_twice_across_checks(
@@ -429,10 +384,10 @@ async def test_a_restart_with_notifications_off_makes_no_request(
     await setup(hass, entry)
     await advance(hass, freezer, timedelta(hours=2))
 
-    assert _state(hass, entry, "switch", KEY_NOTIFICATIONS).state == STATE_OFF
+    assert state(hass, entry, "switch", KEY_NOTIFICATIONS).state == STATE_OFF
     assert ha_ksef.calls == []
-    assert _check(hass, entry)["outcome"] == "disabled"
-    assert _check(hass, entry)["next_check"] is None
+    assert last_check(hass, entry)["outcome"] == "disabled"
+    assert last_check(hass, entry)["next_check"] is None
 
 
 # --- the switch -------------------------------------------------------------------------------
@@ -456,7 +411,7 @@ async def test_switch_off_stops_every_request_and_on_takes_a_fresh_baseline(
 
     assert len(ha_ksef.calls) == requests
     assert stored(hass_storage, entry) == {"cursor": None, "seen": {}}
-    assert _check(hass, entry)["outcome"] == "disabled"
+    assert last_check(hass, entry)["outcome"] == "disabled"
 
     world.add(3)
     await _switch(hass, entry, on=True)
@@ -465,7 +420,7 @@ async def test_switch_off_stops_every_request_and_on_takes_a_fresh_baseline(
 
     world.add(4)
     await advance(hass, freezer, INTERVAL)
-    assert [call.data["data"]["tag"] for call in pushes] == [f"ksef_{ksef_hash(_number(4))}"]
+    assert [call.data["data"]["tag"] for call in pushes] == [f"ksef_{ksef_hash(number(4))}"]
 
 
 async def test_switch_on_soon_after_a_check_waits_for_the_gap(
@@ -478,7 +433,7 @@ async def test_switch_on_soon_after_a_check_waits_for_the_gap(
     await _switch(hass, entry, on=True)
 
     assert ha_ksef.count("metadata") == 1
-    assert _check(hass, entry)["next_check"] == (START + timedelta(minutes=10)).isoformat()
+    assert last_check(hass, entry)["next_check"] == (START + timedelta(minutes=10)).isoformat()
     await advance(hass, freezer, timedelta(minutes=9))
     assert ha_ksef.count("metadata") == 2
 
@@ -493,7 +448,7 @@ async def test_check_now_is_refused_within_ten_minutes_and_resets_the_timer(
     freezer.tick(timedelta(minutes=5))
 
     with pytest.raises(ServiceValidationError) as refused:
-        await _press(hass, entry)
+        await press(hass, entry)
     assert refused.value.translation_key == "too_soon"
     assert refused.value.translation_placeholders == {
         "time": dt_util.as_local(START + timedelta(minutes=10)).strftime("%H:%M")
@@ -501,9 +456,9 @@ async def test_check_now_is_refused_within_ten_minutes_and_resets_the_timer(
     assert ha_ksef.count("metadata") == 1
 
     freezer.tick(timedelta(minutes=5))
-    await _press(hass, entry)
+    await press(hass, entry)
     assert ha_ksef.count("metadata") == 2
-    assert _check(hass, entry)["next_check"] == (START + timedelta(minutes=25)).isoformat()
+    assert last_check(hass, entry)["next_check"] == (START + timedelta(minutes=25)).isoformat()
 
     await advance(hass, freezer, timedelta(minutes=5))  # the old 15-minute mark
     assert ha_ksef.count("metadata") == 2
@@ -517,7 +472,7 @@ async def test_check_now_is_refused_while_notifications_are_off(
     freezer.tick(timedelta(hours=1))
 
     with pytest.raises(ServiceValidationError) as refused:
-        await _press(hass, entry)
+        await press(hass, entry)
     assert refused.value.translation_key == "disabled"
     assert ha_ksef.count("metadata") == 1
 
@@ -554,16 +509,16 @@ async def test_rate_limit_moves_the_next_check_past_retry_after(
     )
     await advance(hass, freezer, INTERVAL)
 
-    check = _check(hass, entry)
+    check = last_check(hass, entry)
     assert check["outcome"] == "rate_limited"
     assert check["next_check"] == (START + INTERVAL + timedelta(seconds=3605)).isoformat()
-    assert _state(hass, entry, "switch", KEY_NOTIFICATIONS).state == STATE_ON
+    assert state(hass, entry, "switch", KEY_NOTIFICATIONS).state == STATE_ON
 
     await advance(hass, freezer, timedelta(minutes=45))
     assert ha_ksef.count("metadata") == 2
     await advance(hass, freezer, timedelta(minutes=15, seconds=5))
     assert ha_ksef.count("metadata") == 3
-    check = _check(hass, entry)
+    check = last_check(hass, entry)
     assert check["outcome"] == "ok"
     assert dt_util.parse_datetime(check["next_check"]) - dt_util.utcnow() == INTERVAL
 
@@ -575,7 +530,7 @@ async def test_an_outage_keeps_the_interval_and_the_entities_available(
     ha_ksef.script("metadata", Reply(status=503), world.reply)
     await advance(hass, freezer, INTERVAL)
 
-    check = _state(hass, entry, "sensor", KEY_LAST_CHECK)
+    check = state(hass, entry, "sensor", KEY_LAST_CHECK)
     assert check.attributes["outcome"] == "unavailable"
     assert dt_util.parse_datetime(check.state) == START  # the last success
     assert check.attributes["next_check"] == (START + 2 * INTERVAL).isoformat()
@@ -584,10 +539,10 @@ async def test_an_outage_keeps_the_interval_and_the_entities_available(
         ("sensor", KEY_LAST_INVOICE),
         ("button", KEY_CHECK_NOW),
     ):
-        assert _state(hass, entry, platform, key).state != "unavailable"
+        assert state(hass, entry, platform, key).state != "unavailable"
 
     await advance(hass, freezer, INTERVAL)
-    assert _check(hass, entry)["outcome"] == "ok"
+    assert last_check(hass, entry)["outcome"] == "ok"
     assert ha_ksef.count("metadata") == 3
 
 
@@ -600,13 +555,13 @@ async def test_a_token_without_permission_starts_reauthentication_and_stops_chec
     )
     await advance(hass, freezer, INTERVAL)
 
-    assert len(_reauth_flows(hass)) == 1
-    assert _check(hass, entry)["outcome"] == "auth_failed"
-    assert _check(hass, entry)["next_check"] is None
+    assert len(reauth_flows(hass)) == 1
+    assert last_check(hass, entry)["outcome"] == "auth_failed"
+    assert last_check(hass, entry)["next_check"] is None
     await advance(hass, freezer, timedelta(hours=2))
     assert ha_ksef.count("metadata") == 2
     with pytest.raises(ServiceValidationError):
-        await _press(hass, entry)
+        await press(hass, entry)
 
 
 async def test_a_revoked_token_at_startup_starts_reauthentication(
@@ -616,8 +571,8 @@ async def test_a_revoked_token_at_startup_starts_reauthentication(
     entry = await setup(hass)
 
     assert entry.state is ConfigEntryState.LOADED
-    assert len(_reauth_flows(hass)) == 1
-    assert _check(hass, entry)["outcome"] == "auth_failed"
+    assert len(reauth_flows(hass)) == 1
+    assert last_check(hass, entry)["outcome"] == "auth_failed"
     assert ha_ksef.count("metadata") == 0
 
 
@@ -632,8 +587,8 @@ async def test_a_blocked_account_raises_a_repair_issue_and_stops_checks(
 
     issue_id = f"{ISSUE_ACCOUNT_BLOCKED}_{entry.entry_id}"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
-    assert _reauth_flows(hass) == []
-    assert _check(hass, entry)["outcome"] == "blocked"
+    assert reauth_flows(hass) == []
+    assert last_check(hass, entry)["outcome"] == "blocked"
     await advance(hass, freezer, timedelta(hours=2))
     assert ha_ksef.count("metadata") == 2
 
@@ -641,7 +596,7 @@ async def test_a_blocked_account_raises_a_repair_issue_and_stops_checks(
     assert await hass.config_entries.async_reload(entry.entry_id)
     await settle(hass)
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
-    assert _check(hass, entry)["outcome"] == "ok"
+    assert last_check(hass, entry)["outcome"] == "ok"
 
 
 async def test_a_missing_phone_raises_an_issue_and_the_invoice_is_not_retried(
@@ -682,7 +637,7 @@ async def test_a_failing_phone_service_counts_as_not_notified(
     assert [event.data["notified"] for event in events] == [False]
     issue_id = f"{ISSUE_NOTIFY_SERVICE_MISSING}_{entry.entry_id}"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
-    assert _check(hass, entry)["outcome"] == "ok"
+    assert last_check(hass, entry)["outcome"] == "ok"
 
 
 # --- invoice XML ------------------------------------------------------------------------------
@@ -830,11 +785,11 @@ async def test_the_store_holds_no_invoice_content(
 
     data = stored(hass_storage, entry)
     assert set(data) == {"cursor", "seen"}
-    assert list(data["seen"]) == [ksef_hash(_number(2))]
+    assert list(data["seen"]) == [ksef_hash(number(2))]
     assert all(re.fullmatch(r"[0-9a-f]{16}", key) for key in data["seen"])
     text = json.dumps(hass_storage[storage_key(entry)])
     for value in (
-        _number(2),
+        number(2),
         "3333333333",
         SELLER,
         INVOICE_NUMBER,
@@ -880,8 +835,8 @@ async def test_diagnostics_redact_every_secret_and_invoice_value(
         PHONE,
         "synthetic-access-token",
         "synthetic-refresh-token",
-        _number(2),
-        ksef_hash(_number(2)),
+        number(2),
+        ksef_hash(number(2)),
         SELLER,
         INVOICE_NUMBER,
         "123.0",

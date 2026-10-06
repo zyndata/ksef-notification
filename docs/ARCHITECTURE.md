@@ -252,8 +252,15 @@ windows — is paid by the `seen` set below.
 - `deferrals` holds only currently deferred invoices; entries are removed when handled.
 - **Paging assumption:** a window restarts `OVERLAP` before the cursor, so a query cut short by
   `MAX_PAGES` makes progress only if fewer than `MAX_PAGES` × `PAGE_SIZE` = 750 invoices were
-  stored within any 60 seconds. Far beyond one company's cost invoices; the phase 4 simulation
-  stays inside it, and phase 8 records it with the measured numbers.
+  stored within any 60 seconds. If that were ever broken, every check would return the same
+  750 already-handled invoices and the cursor would not move: no duplicate, but nothing newer
+  until notifications are switched off and on again (a new baseline). Measured against KSeF's own limits (TEST,
+  2026-10-06, equal to production): a seller sending online can store at most 30 invoices a
+  minute per (seller, IP) (`invoiceSend` 10 / s, 30 / min, 180 / h), so it takes 25 sellers
+  sending at full rate to the same buyer in the same minute; only a **batch session** (up to
+  thousands of invoices in one package) from a seller billing this one company 750 times at
+  once could reach it. Accepted for 1.0: no plausible cost-invoice stream comes near it, and the
+  phase 4 simulation and the phase 8 burst test (300 invoices in one check) stay inside it.
 
 ### The 100-day limit
 
@@ -450,6 +457,27 @@ best-effort, so the refresh token does not outlive the entry.
   stay available; only the diagnostic sensor reports the failure (as its `outcome`). A failed
   check is not "no invoice".
 
+### Failure paths, measured
+
+Phase 8 (2026-10-06). KSeF's side of each failure was provoked on TEST where possible
+([KSEF_API.md](KSEF_API.md#failure-behaviour-observed)); the integration's reaction was run end to
+end in Home Assistant's test harness with the replies TEST gave (`tests/test_resilience.py`).
+"Once" means: every invoice that arrived before, during or after the failure produced exactly
+one push and one event.
+
+| Failure | Source of KSeF's behaviour | Requests while it lasts | Recovery | User asked for | Once |
+|---|---|---|---|---|---|
+| Access token refused as expired (401) | TEST: 401 for a bad token; an expired one is still accepted for a while | refresh, the query again — once | same check | nothing | yes |
+| Refresh token refused (401, or 21301 after the session was revoked) | TEST | one full authentication (4 requests; key cached) | same check | nothing | yes |
+| Refresh token at its 7-day end | simulated | no refresh attempted; one full authentication | same check | nothing | — |
+| KSeF token revoked | TEST: access token keeps working, then 21301 / 450 | until the access token runs out checks succeed; then refresh + 3 authentication requests, **then none** | after a new token (re-authentication reloads the entry): catches up from the cursor, not a baseline | **re-authentication** | yes |
+| Context blocked | TEST: 21301 "(480)", then status 480 | refresh + 3, then none | after a reload, once MF lifts the block | **repair issue** (`account_blocked`), no re-authentication | yes |
+| HTTP 429 (metadata or refresh) | TEST: `Retry-After` 3565 s | the one refused request, **then none** until `Retry-After` + 5 s | first check after that | nothing | yes |
+| Outage, 6 h (503, timeouts, connection errors in turn) | simulated | **one per check** (24 in 6 h, checked minute by minute) | first check after it: one refresh + one query covering the whole gap, five invoices in one combined push | nothing; `outcome` `unavailable`, every entity available, no issue | yes |
+| Outage inside authentication (status 550, 500, challenge 503) | simulated | one authentication attempt per check | next check | nothing | — |
+| Restart while the 2nd of 3 pushes is on its way | simulated (entry reload) | — | the reloaded entry checks at once and sends pushes 2 and 3 | nothing | yes |
+| Hard crash right after a push, before its store write | simulated (store image taken at that push) | — | that one push is repeated; nothing before it, nothing missed | nothing | **at least once** — the documented corner |
+
 ---
 
 ## Several invoices at once
@@ -598,8 +626,10 @@ Public contracts from 1.0.0 on. Exact names, states and payload schemas are in
 
 ## Resource and request budget
 
-Consistent with [KSEF_API.md](KSEF_API.md#request-budget); phase 8 replaces the estimates with
-measurements.
+Consistent with [KSEF_API.md](KSEF_API.md#request-budget). **Measured in phase 8 (2026-10-06)**
+— the tables below were estimates in phase 1; each number is now what `tests/test_budget.py`
+counts over a simulated day (time stepped by the minute, every field selected) and asserts, so a
+change that costs more requests fails the suite. Every estimate held.
 
 ### Per cycle
 
@@ -623,6 +653,20 @@ Paging (only with > 250 new invoices) adds at most 2 metadata queries to one cyc
 ≤ 8 / h. Per minute, no group exceeds 4 requests. Because limits are per (NIP, IP), the remaining
 70–80 % is what another program polling the same company from the same connection can use.
 
+**Measured** (worst case: three new FA(3) invoices before every check):
+
+| Group | Peak per s / min / h, timer only | Peak per h, *Check now* every 10 min | Per day, timer only |
+|---|---|---|---|
+| invoiceMetadata | 1 / 1 / 4 | 6 | 97 |
+| invoiceDownload | 3 / 3 / 12 | 18 | 288 |
+| auth | 5 / s once (the setup's authentication) | — | 1 authentication + 96 refreshes |
+
+Over a simulated week: 2 full authentications (setup and day 7), 1 key-list download, one
+refresh per check. **Live in a real Home Assistant 2026.9.4 on TEST** (2026-10-06, all 13 fields):
+the baseline cost 5 authentication requests and 1 query; a check with 2 new invoices cost 1
+refresh, 1 query and 2 downloads, and the last-check sensor read 2 / 2 for the hour; a check with
+5 new invoices cost 1 refresh, 1 query and no download.
+
 ### Local resources
 
 | Quantity | Bound |
@@ -632,3 +676,19 @@ Paging (only with > 250 new invoices) adds at most 2 metadata queries to one cyc
 | Transient per cycle | one metadata response (≤ 3 × 250 records), one XML body (≤ 4 MB) at a time |
 | Event-loop time | JSON decode and formatting only; XML parsing in the executor |
 | Pushes per device per day | ≤ 288 at the default interval (relay limit 500) |
+
+**Measured** (phase 8):
+
+- **Memory does not grow.** Over a simulated week with three invoices an hour, the memory
+  allocated by the integration's own code and still held was 23.1 KB on day two and 23.6 KB on
+  day seven (+0.5 KB after 360 more invoices, `tracemalloc`). Day one is warm-up: aiohttp's
+  URL parser (yarl) caches the last 128 URLs, and each download has its own URL. Timers
+  scheduled on the event loop: the same number on day two and day seven. `seen` held ≤ 3
+  entries, the request counters one hour of requests (11).
+- **Nothing blocks the event loop.** A full life cycle (setup, individual and combined checks
+  with every field, switch off, reload, removal) ran with Home Assistant's blocking-call
+  detection switched on (`block_async_io`, as in a real instance) without a detection, and the
+  XML was parsed on an executor thread both times. A real Home Assistant 2026.9.4 started with
+  `--debug` and Python's development mode (`-X dev`, asyncio debug: slow callbacks over 100 ms
+  are logged) ran the integration against TEST for several checks without a blocking-call
+  report or a slow-callback warning from it.
