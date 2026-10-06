@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Faktura xmlns:etd="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/" xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (2)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>2</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-01T09:00:00Z</DataWytworzeniaFa>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>2222222222</NIP>
+      <Nazwa>Fikcyjny Dostawca A</Nazwa>
+    </DaneIdentyfikacyjne>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>1111111111</NIP>
+      <Nazwa>Testowa Spółka Odbiorca</Nazwa>
+    </DaneIdentyfikacyjne>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-09-30</P_1>
+    <P_2>A/17/2026</P_2>
+    <P_15>1230.0</P_15>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Pozycja pierwsza</P_7>
+      <P_11>100.00</P_11>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>2</NrWierszaFa>
+      <P_7>  Pozycja
+        druga  </P_7>
+      <P_11>100.00</P_11>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>3</NrWierszaFa>
+      <P_11>100.00</P_11>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>4</NrWierszaFa>
+      <P_7>Pozycja czwarta</P_7>
+      <P_11>100.00</P_11>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>5</NrWierszaFa>
+      <P_7>Pozycja piąta</P_7>
+      <P_11>100.00</P_11>
+    </FaWiersz>
+    <Platnosc>
+      <TerminPlatnosci>
+        <Termin>2026-11-15</Termin>
+      </TerminPlatnosci>
+      <TerminPlatnosci>
+        <Termin>2026-10-15</Termin>
+      </TerminPlatnosci>
+      <TerminPlatnosci>
+        <Termin>2026-12-15</Termin>
+      </TerminPlatnosci>
+      <PlatnoscInna>1</PlatnoscInna>
+      <OpisPlatnosci>Kompensata</OpisPlatnosci>
+      <RachunekBankowy>
+        <NrRB>00000000000000000000000000</NrRB>
+      </RachunekBankowy>
+      <RachunekBankowy>
+        <NrRB>11111111111111111111111111</NrRB>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The decision core (`core/`), pure Python without Home Assistant: an invoice model built from
+  KSeF's metadata in which every field may be missing; a hardened reader for the invoice XML
+  (FA(2) and FA(3)) that refuses DTDs and entities, bounds size, depth and text, and picks
+  only the due dates, payment form, bank account and line items the notification can show —
+  never a factor's account, a partial payment's form or a correction's "before" rows; the
+  new-invoice tracker that decides what to notify from KSeF's high-water mark, keeps only
+  hashes and timestamps, and never notifies an invoice twice or misses one across restarts;
+  and the message formatter: the selected fields in a fixed order, Polish and English number
+  and date rules, grouped bank accounts, seller-written text cleaned and shortened, absent
+  values shown as "—", and one combined message for more than three invoices.
+- English texts for notification titles, field labels, payment forms and invoice types.
+- Tests for all of it, including a simulation of three days of checks with late invoices,
+  partial queries, deferrals and restarts, and hostile XML documents.
+
 - The KSeF client (`client/`): logs in with a KSeF token (RSA-OAEP encryption with the current
   public key, status polling, redeem), keeps the 15-minute access token alive with the refresh
   token and falls back to a fresh login when KSeF refuses the refresh, and tells a revoked or

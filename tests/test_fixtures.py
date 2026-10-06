@@ -24,10 +24,14 @@ FILES = sorted(path for path in FIXTURES.iterdir() if path.is_file())
 
 #: Repdigit NIPs: their checksum is valid by construction, and no tax office issues them.
 INVENTED_NIPS = {"0000000000", NIP, "2222222222", "3333333333"}
-INVENTED_NAMES = {"Fikcyjny Dostawca B", "Testowa Spółka Odbiorca"}
-INVENTED_ACCOUNTS = {"00000000000000000000000000"}
+INVENTED_NAMES = {"Fikcyjny Dostawca A", "Fikcyjny Dostawca B", "Testowa Spółka Odbiorca"}
+INVENTED_ACCOUNTS = {
+    "00000000000000000000000000",
+    "11111111111111111111111111",
+    "PL22222222222222222222222222",
+}
 #: Monetary amounts are invented too; listed so that a pasted real invoice stands out.
-INVENTED_AMOUNTS = {"100.00", "123.00", 100.0, 123.0, 23.0, 1000.0, 1230.0, 980.5}
+INVENTED_AMOUNTS = {"100.00", "123.00", "1230.0", 100.0, 123.0, 23.0, 1000.0, 1230.0, 980.5}
 
 NIP_WEIGHTS = (6, 5, 7, 2, 3, 4, 5, 6, 7)
 

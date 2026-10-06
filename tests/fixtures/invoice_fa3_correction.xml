@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tns:Faktura xmlns:tns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <tns:Naglowek>
+    <tns:KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</tns:KodFormularza>
+    <tns:WariantFormularza>3</tns:WariantFormularza>
+    <tns:DataWytworzeniaFa>2026-10-05T12:00:00Z</tns:DataWytworzeniaFa>
+  </tns:Naglowek>
+  <tns:Podmiot1>
+    <tns:DaneIdentyfikacyjne>
+      <tns:NIP>3333333333</tns:NIP>
+      <tns:Nazwa>Fikcyjny Dostawca B</tns:Nazwa>
+    </tns:DaneIdentyfikacyjne>
+  </tns:Podmiot1>
+  <tns:Podmiot2>
+    <tns:DaneIdentyfikacyjne>
+      <tns:NIP>1111111111</tns:NIP>
+      <tns:Nazwa>Testowa Spółka Odbiorca</tns:Nazwa>
+    </tns:DaneIdentyfikacyjne>
+  </tns:Podmiot2>
+  <tns:Fa>
+    <tns:KodWaluty>PLN</tns:KodWaluty>
+    <tns:P_1>2026-10-05</tns:P_1>
+    <tns:P_2>KOR/2026/10/0001</tns:P_2>
+    <tns:P_15>100.00</tns:P_15>
+    <tns:RodzajFaktury>KOR</tns:RodzajFaktury>
+    <tns:FaWiersz>
+      <tns:NrWierszaFa>1</tns:NrWierszaFa>
+      <tns:P_7>Usługa przed korektą</tns:P_7>
+      <tns:P_11>123.00</tns:P_11>
+      <tns:StanPrzed>1</tns:StanPrzed>
+    </tns:FaWiersz>
+    <tns:FaWiersz>
+      <tns:NrWierszaFa>2</tns:NrWierszaFa>
+      <tns:P_7>Usługa po korekcie</tns:P_7>
+      <tns:P_11>100.00</tns:P_11>
+    </tns:FaWiersz>
+    <tns:Platnosc>
+      <tns:ZaplataCzesciowa>
+        <tns:KwotaZaplatyCzesciowej>100.00</tns:KwotaZaplatyCzesciowej>
+        <tns:DataZaplatyCzesciowej>2026-10-01</tns:DataZaplatyCzesciowej>
+        <tns:FormaPlatnosci>1</tns:FormaPlatnosci>
+      </tns:ZaplataCzesciowa>
+      <tns:TerminPlatnosci>
+        <tns:TerminOpis>
+          <tns:Ilosc>14</tns:Ilosc>
+          <tns:Jednostka>dni</tns:Jednostka>
+          <tns:ZdarzeniePoczatkowe>od dnia doręczenia</tns:ZdarzeniePoczatkowe>
+        </tns:TerminOpis>
+      </tns:TerminPlatnosci>
+      <tns:RachunekBankowyFaktora>
+        <tns:NrRB>PL22222222222222222222222222</tns:NrRB>
+      </tns:RachunekBankowyFaktora>
+    </tns:Platnosc>
+  </tns:Fa>
+</tns:Faktura>

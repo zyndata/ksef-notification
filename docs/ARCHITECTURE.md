@@ -48,10 +48,12 @@ custom_components/ksef_notification/
 └── core/                # PURE: no I/O, no homeassistant imports, no clock reads (now is a parameter)
     ├── __init__.py
     ├── fields.py        # the field registry: key, source, order; needs_xml(selection)
-    ├── model.py         # Invoice dataclass, from_metadata(), with_details()
+    ├── model.py         # Invoice, InvoiceDetails, DetailsStatus; from_metadata(), with_details()
     ├── xml_parser.py    # bytes → InvoiceDetails, hardened streaming expat parser
-    ├── tracker.py       # TrackerState + plan_cycle() / record_notified() / finish_cycle()
-    └── formatter.py     # Invoice + selection + locale → title/body parts (translation keys + values)
+    ├── tracker.py       # TrackerState + plan_cycle() / select_new() / record_handled() /
+    │                    #   may_defer() / record_deferred() / finish_baseline() / finish_cycle()
+    └── formatter.py     # Invoice + selection + locale → Message (translation keys + values);
+                         #   render(message, strings); field_values() for the event and sensor
 ```
 
 Layering rules (phase 4 enforces the first one with a test, as Walk the dog does):
@@ -161,10 +163,10 @@ One update cycle of `KsefCoordinator`, entered only while the switch is on:
    formatter → title/body (translation keys + values) → notifier: push + event
                        │
                        ▼
-   tracker.record_notified(hash) → store.save()   (after every push)
+   tracker.record_handled(invoice) → store.save()   (after every push)
                        │
                        ▼
-   tracker.finish_cycle(HWM, deferred) → cursor advances → store.save()
+   tracker.finish_cycle(invoices, HWM, complete) → cursor advances → store.save()
                        │
                        ▼
    coordinator data → last-invoice sensor, last-check sensor
@@ -247,6 +249,10 @@ windows — is paid by the `seen` set below.
   Hard cap `SEEN_MAX` = 1 000 entries; above it the oldest by date are dropped and a warning is
   logged (reachable only with > 1 000 cost invoices inside one window, far beyond the use case).
 - `deferrals` holds only currently deferred invoices; entries are removed when handled.
+- **Paging assumption:** a window restarts `OVERLAP` before the cursor, so a query cut short by
+  `MAX_PAGES` makes progress only if fewer than `MAX_PAGES` × `PAGE_SIZE` = 750 invoices were
+  stored within any 60 seconds. Far beyond one company's cost invoices; the phase 4 simulation
+  stays inside it, and phase 8 records it with the measured numbers.
 
 ### The 100-day limit
 

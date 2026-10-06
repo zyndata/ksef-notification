@@ -143,7 +143,7 @@ One service device per entry, named after the entry title.
 ### Last invoice — attributes
 
 `ksef_number` and every selected field under its key, as raw values (amounts as numbers,
-`currency` alongside whenever an amount is selected, dates as ISO strings, `payment_form` as the
+`currency` alongside whenever the gross or net amount is selected, dates as ISO strings, `payment_form` as the
 code). **None of them is written to Home Assistant's history** (`_unrecorded_attributes`), and
 the sensor is not restored after a restart, so no invoice value reaches Home Assistant's
 database through it.
@@ -195,7 +195,7 @@ first check takes note of. Times are ISO-8601 UTC.
 | `combined` | bool | The invoice was part of a combined message (4+ in one check) |
 | `notified` | bool | The push was sent successfully |
 | `details` | `fetched` \| `not_needed` \| `unavailable` | Whether the XML was read: `not_needed` — no XML field selected; `unavailable` — needed but not obtained (PEF/FA_RR, combined message, still not ready after retries, unreadable) |
-| `fields` | object | **The selected fields only**, keyed as in the field table, raw values, `null` when absent. `currency` is added whenever an amount is selected. `due_date` is the earliest date (or `null`); `bank_account` the first account; `line_items` an object `{count, descriptions[]}`; `payment_form` the code `"1"`–`"7"` or the free-text description |
+| `fields` | object | **The selected fields only**, keyed as in the field table, raw values, `null` when absent. `currency` (the invoice currency) is added whenever the gross or net amount is selected; `vat_amount` is always in PLN. `due_date` is the earliest date (or `null`); `bank_account` the first account; `line_items` an object `{count, descriptions[]}` (or `null` when the invoice has no rows); `payment_form` the code `"1"`–`"7"` or the free-text description |
 
 Keys and values are identifiers and stay English in every language.
 
