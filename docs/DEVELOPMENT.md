@@ -45,6 +45,7 @@ environment; nothing in the test suite reads them.
 | `python scripts/install.py` | deploy `custom_components/ksef_notification/` into a local HA instance |
 | `python scripts/release.py` | check that `manifest.json` and `CHANGELOG.md` agree (see [Releasing](#releasing)) |
 | `python scripts/github_setup.py [--dry-run]` | apply the GitHub repository settings (description, topics, security, rulesets) |
+| `python scripts/make_branding.py` | redraw the icon and logo into `custom_components/ksef_notification/brand/` (see [BRANDING.md](BRANDING.md)) |
 
 Tests use `pytest-homeassistant-custom-component` and must pass with **no network access**.
 Every fixture under `tests/fixtures/` is **synthetic** — written by hand to the shape of a real
@@ -78,7 +79,13 @@ Old images can be removed with `docker image prune --filter reference=ksef-notif
 Editing a user-facing string means editing both — `tests/test_strings.py` fails otherwise.
 `hassfest` validates `strings.json` and `en.json` for a custom integration and ignores every
 other language file, so a translation's completeness can only be checked by
-`tests/test_strings.py` — every language file added needs its parity checks there.
+`tests/test_strings.py`. Its parity checks run for every code in `TRANSLATED` (now `pl`): the
+same keys as `strings.json`, no empty text, the same `{placeholders}`, and no text left in
+English except the short list in `SAME_IN_POLISH` (abbreviations such as VAT). A new language
+is added to `TRANSLATED`.
+
+Polish phrases with a number avoid plural forms ("Nowe faktury kosztowe: {count}", "jeszcze
+{count}"): the formatter substitutes a number and nothing else, and Polish needs three forms.
 
 In a running Home Assistant, a changed translation needs a **full restart**. Reloading the
 integration re-reads the code but not the frontend's translation cache.
@@ -92,7 +99,8 @@ Some tests check the shape of the repository rather than behaviour:
 | `test_release.py` | `manifest.json`'s version has a dated `CHANGELOG.md` section and is the newest one |
 | `test_syntax_floor.py` | every shipped module parses on Python 3.13 (see [Versions and pins](#versions-and-pins)) |
 | `test_purity.py` | `core/*` imports only the standard library, reads no clock and does no I/O; `client/*` never imports `core` |
-| `test_strings.py` | every step and abort reason the flow uses has a string; `en.json` equals `strings.json` |
+| `test_strings.py` | every step, error, abort reason, entity, exception and issue has a string; `en.json` equals `strings.json`; every translation is complete (see [Translations](#translations)) |
+| `test_branding.py` | the brand images exist with the sizes and transparency the brand-image rules require |
 | `test_repository.py` | no tracked document links to a git-ignored local working file |
 | `test_dev_env.py` | the uv Python location stays stable on Linux |
 

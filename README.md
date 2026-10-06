@@ -12,7 +12,8 @@ forgotten.
 
 > **Unofficial.** This integration is not affiliated with, endorsed by or supported by the
 > Ministry of Finance or the KSeF team. It uses KSeF's public API the way any accounting
-> program does.
+> program does. Its icon is its own and deliberately does not use the KSeF or Ministry of
+> Finance logo.
 
 ## Features
 
@@ -31,6 +32,9 @@ forgotten.
   sensor for the most recent invoice, a diagnostic sensor that tells "no new invoices" apart
   from "KSeF has not answered", and a switch to pause notifications.
 - **No invoice archive** — no XML, PDF or database on disk. See [Privacy](#privacy).
+- **In Polish and English** — the setup, the entities and the notifications. Notifications use
+  Home Assistant's own language (Settings → System → General), with Polish amounts and dates
+  when it is Polish.
 
 ## Requirements
 

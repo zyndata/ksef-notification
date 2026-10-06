@@ -39,6 +39,15 @@ STRINGS: dict[str, str] = json.loads(
         Path(__file__).parents[1] / "custom_components" / "ksef_notification" / "strings.json"
     ).read_text(encoding="utf-8")
 )["common"]
+POLISH: dict[str, str] = json.loads(
+    (
+        Path(__file__).parents[1]
+        / "custom_components"
+        / "ksef_notification"
+        / "translations"
+        / "pl.json"
+    ).read_text(encoding="utf-8")
+)["common"]
 NBSP = chr(0xA0)  # no-break space
 
 FA2_DETAILS = parse(fixture_bytes("invoice_fa2.xml"))
@@ -105,6 +114,43 @@ def test_polish_number_and_date_rules() -> None:
     assert lines[3] == f"Gross: 1{NBSP}234,56 PLN"
     assert lines[6] == "Issue date: 05.10.2026"
     assert lines[7] == "Due date: 15.10.2026 (+2 more)"
+
+
+def test_every_field_present_in_polish() -> None:
+    item = full_invoice().with_details(FA2_DETAILS)
+
+    title_text, body = render(format_invoice(item, FIELD_KEYS, "pl"), POLISH)
+
+    assert title_text == "Nowa faktura kosztowa"
+    assert body.split("\n") == [
+        "Fikcyjny Dostawca B",
+        "NIP sprzedawcy: 3333333333",
+        "Numer faktury: FV/2026/10/0042",
+        f"Brutto: 1{NBSP}234,56 PLN",
+        f"Netto: 1{NBSP}003,71 PLN",
+        "VAT: 230,85 PLN",
+        "Data wystawienia: 05.10.2026",
+        "Termin płatności: 15.10.2026 (jeszcze 2)",
+        "Forma płatności: Kompensata",
+        "Nr rachunku: 00 0000 0000 0000 0000 0000 0000 (jeszcze 1)",
+        "Pozycje: 5: Pozycja pierwsza; Pozycja druga; Pozycja czwarta; jeszcze 2",
+        "Rodzaj faktury: Faktura VAT",
+        f"Numer KSeF: {item.ksef_number}",
+    ]
+
+
+def test_a_combined_message_in_polish() -> None:
+    """The count stands after a colon, so no Polish plural form is needed for any number."""
+    items = [full_invoice(gross_amount=Decimal(n)) for n in range(COMBINED_MAX_LINES + 2)]
+
+    title_text, body = render(format_combined(items, "pl"), POLISH)
+
+    assert title_text == f"Nowe faktury kosztowe: {COMBINED_MAX_LINES + 2}"
+    assert body.split("\n")[-1] == "… i jeszcze 2"
+
+
+def test_every_emitted_key_has_a_polish_text() -> None:
+    assert set(POLISH) == MESSAGE_KEYS
 
 
 @pytest.mark.parametrize("locale", ["pl", "PL", "pl-PL", "pl_PL"])

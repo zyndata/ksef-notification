@@ -1,0 +1,279 @@
+{
+  "title": "Powiadomienia KSeF",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dostęp do KSeF",
+        "description": "Połącz się z KSeF tokenem firmy, o której fakturach kosztowych chcesz dostawać powiadomienia. Token wygeneruj w Aplikacji Podatnika KSeF tego samego środowiska, wyłącznie z uprawnieniem do **przeglądania faktur** (InvoiceRead). Przed zapisaniem token zostanie sprawdzony w KSeF.",
+        "data": {
+          "environment": "Środowisko KSeF",
+          "nip": "NIP firmy",
+          "token": "Token KSeF"
+        },
+        "data_description": {
+          "environment": "Produkcyjne dla prawdziwych faktur; TEST i DEMO to środowiska KSeF do wypróbowania integracji. Token działa tylko w środowisku, w którym został wygenerowany.",
+          "nip": "Firma, która otrzymuje faktury. 10 cyfr; spacje i myślniki są pomijane.",
+          "token": "Zapisany w Home Assistant i wysyłany wyłącznie do KSeF, w postaci zaszyfrowanej."
+        }
+      },
+      "notification": {
+        "title": "Powiadomienie",
+        "description": "Wybierz telefon, na który mają trafiać powiadomienia, i to, co ma się w nich znaleźć. Pola oznaczone „z faktury” (termin płatności, forma płatności, rachunek bankowy, pozycje) wymagają pobrania faktury — to jedno dodatkowe zapytanie do KSeF na każdą nową fakturę.",
+        "data": {
+          "notify_service": "Telefon do powiadomień",
+          "fields": "Dane faktury w powiadomieniu"
+        },
+        "data_description": {
+          "notify_service": "Usługa powiadomień aplikacji Home Assistant Companion (notify.mobile_app_…). Można też wpisać taką, która nie jest jeszcze zarejestrowana.",
+          "fields": "Co najmniej jedno pole. Pola zawsze pojawiają się w tej samej kolejności."
+        }
+      },
+      "behaviour": {
+        "title": "Działanie",
+        "description": "Jak często pytać KSeF o nowe faktury. 15 minut to najkrótszy odstęp, na jaki pozwalają zalecenia KSeF dla środowiska produkcyjnego.",
+        "data": {
+          "check_interval_min": "Odstęp między sprawdzeniami"
+        },
+        "data_description": {
+          "check_interval_min": "W minutach: od 15 do 1440, co 5."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nowy token KSeF",
+        "description": "KSeF nie przyjmuje już tokena dla {entry_title}. Wygeneruj nowy token KSeF dla tej samej firmy i tego samego środowiska, z uprawnieniem do **przeglądania faktur** (InvoiceRead), i wpisz go tutaj. Faktury, o których już było powiadomienie, nie zostaną zgłoszone ponownie.",
+        "data": {
+          "token": "Token KSeF"
+        },
+        "data_description": {
+          "token": "Zapisany w Home Assistant i wysyłany wyłącznie do KSeF, w postaci zaszyfrowanej."
+        }
+      }
+    },
+    "error": {
+      "invalid_nip": "To nie jest prawidłowy NIP: musi mieć 10 cyfr i poprawną cyfrę kontrolną.",
+      "invalid_token": "KSeF odrzucił token. Może być źle wpisany, unieważniony lub nieaktywny, wygenerowany w innym środowisku KSeF albo dla innego NIP-u.",
+      "no_permission": "Token działa, ale nie ma uprawnienia do przeglądania faktur (InvoiceRead). Wygeneruj token z tym uprawnieniem.",
+      "account_blocked": "KSeF odmówił dostępu tej firmie lub osobie (kontekst albo konto jest zablokowane). Sprawdź konto w Aplikacji Podatnika KSeF.",
+      "rate_limited": "KSeF prosi o zwolnienie tempa (zbyt wiele zapytań). Spróbuj ponownie za kilka minut.",
+      "cannot_connect": "Nie udało się połączyć z KSeF albo jego odpowiedź była nieprawidłowa. Spróbuj ponownie później.",
+      "unknown": "Nieoczekiwany błąd. Szczegóły są w logu Home Assistant.",
+      "no_fields": "Wybierz co najmniej jedno pole faktury.",
+      "invalid_notify_service": "To nie jest usługa powiadomień telefonu. Podaj usługę notify.mobile_app_…, na przykład mobile_app_moj_telefon.",
+      "invalid_interval": "Odstęp musi być pełną liczbą minut, podzielną przez 5."
+    },
+    "abort": {
+      "already_configured": "Ta firma jest już skonfigurowana w tym środowisku KSeF.",
+      "reauth_successful": "Nowy token KSeF działa i został zapisany."
+    }
+  },
+  "options": {
+    "step": {
+      "notification": {
+        "title": "Powiadomienie",
+        "description": "Wybierz telefon, na który mają trafiać powiadomienia, i to, co ma się w nich znaleźć. Pola oznaczone „z faktury” (termin płatności, forma płatności, rachunek bankowy, pozycje) wymagają pobrania faktury — to jedno dodatkowe zapytanie do KSeF na każdą nową fakturę.",
+        "data": {
+          "notify_service": "Telefon do powiadomień",
+          "fields": "Dane faktury w powiadomieniu"
+        },
+        "data_description": {
+          "notify_service": "Usługa powiadomień aplikacji Home Assistant Companion (notify.mobile_app_…). Można też wpisać taką, która nie jest jeszcze zarejestrowana.",
+          "fields": "Co najmniej jedno pole. Pola zawsze pojawiają się w tej samej kolejności."
+        }
+      },
+      "behaviour": {
+        "title": "Działanie",
+        "description": "Jak często pytać KSeF o nowe faktury. 15 minut to najkrótszy odstęp, na jaki pozwalają zalecenia KSeF dla środowiska produkcyjnego.",
+        "data": {
+          "check_interval_min": "Odstęp między sprawdzeniami"
+        },
+        "data_description": {
+          "check_interval_min": "W minutach: od 15 do 1440, co 5."
+        }
+      }
+    },
+    "error": {
+      "no_fields": "Wybierz co najmniej jedno pole faktury.",
+      "invalid_notify_service": "To nie jest usługa powiadomień telefonu. Podaj usługę notify.mobile_app_…, na przykład mobile_app_moj_telefon.",
+      "invalid_interval": "Odstęp musi być pełną liczbą minut, podzielną przez 5."
+    }
+  },
+  "selector": {
+    "environment": {
+      "options": {
+        "prod": "Produkcyjne",
+        "demo": "DEMO (przedprodukcyjne)",
+        "test": "TEST"
+      }
+    },
+    "fields": {
+      "options": {
+        "seller_name": "Sprzedawca",
+        "seller_nip": "NIP sprzedawcy",
+        "invoice_number": "Numer faktury",
+        "gross_amount": "Kwota brutto",
+        "net_amount": "Kwota netto",
+        "vat_amount": "Kwota VAT (zawsze w PLN)",
+        "issue_date": "Data wystawienia",
+        "due_date": "Termin płatności (z faktury)",
+        "payment_form": "Forma płatności (z faktury)",
+        "bank_account": "Rachunek bankowy (z faktury)",
+        "line_items": "Pozycje (z faktury)",
+        "invoice_type": "Rodzaj faktury",
+        "ksef_number": "Numer KSeF"
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "notifications": {
+        "name": "Powiadomienia"
+      }
+    },
+    "sensor": {
+      "last_invoice": {
+        "name": "Ostatnia faktura",
+        "state_attributes": {
+          "ksef_number": {
+            "name": "Numer KSeF"
+          },
+          "currency": {
+            "name": "Waluta"
+          },
+          "seller_name": {
+            "name": "Sprzedawca"
+          },
+          "seller_nip": {
+            "name": "NIP sprzedawcy"
+          },
+          "invoice_number": {
+            "name": "Numer faktury"
+          },
+          "gross_amount": {
+            "name": "Brutto"
+          },
+          "net_amount": {
+            "name": "Netto"
+          },
+          "vat_amount": {
+            "name": "VAT"
+          },
+          "issue_date": {
+            "name": "Data wystawienia"
+          },
+          "due_date": {
+            "name": "Termin płatności"
+          },
+          "payment_form": {
+            "name": "Forma płatności"
+          },
+          "bank_account": {
+            "name": "Rachunek bankowy"
+          },
+          "line_items": {
+            "name": "Pozycje"
+          },
+          "invoice_type": {
+            "name": "Rodzaj faktury"
+          }
+        }
+      },
+      "last_check": {
+        "name": "Ostatnie sprawdzenie",
+        "state_attributes": {
+          "outcome": {
+            "name": "Wynik",
+            "state": {
+              "ok": "OK",
+              "rate_limited": "KSeF ogranicza zapytania",
+              "unavailable": "KSeF niedostępny",
+              "auth_failed": "Token odrzucony",
+              "blocked": "Dostęp zablokowany",
+              "disabled": "Powiadomienia wyłączone"
+            }
+          },
+          "last_attempt": {
+            "name": "Ostatnia próba"
+          },
+          "next_check": {
+            "name": "Następne sprawdzenie"
+          },
+          "new_invoices": {
+            "name": "Nowe faktury"
+          },
+          "metadata_requests_last_hour": {
+            "name": "Zapytania o listę faktur w ostatniej godzinie"
+          },
+          "download_requests_last_hour": {
+            "name": "Pobrania faktur w ostatniej godzinie"
+          }
+        }
+      }
+    },
+    "button": {
+      "check_now": {
+        "name": "Sprawdź teraz"
+      }
+    }
+  },
+  "exceptions": {
+    "disabled": {
+      "message": "Powiadomienia są wyłączone. Włącz je, żeby sprawdzić KSeF."
+    },
+    "halted": {
+      "message": "Sprawdzanie jest wstrzymane, dopóki problem z dostępem do KSeF nie zostanie rozwiązany. Zajrzyj do napraw albo do prośby o ponowne uwierzytelnienie."
+    },
+    "too_soon": {
+      "message": "KSeF był sprawdzany niecałe 10 minut temu. Następne ręczne sprawdzenie będzie możliwe o {time}."
+    }
+  },
+  "issues": {
+    "notify_service_missing": {
+      "title": "Telefon do powiadomień KSeF jest nieosiągalny",
+      "description": "Nie udało się wysłać powiadomienia dla {entry_title} przez {service}: tej usługi nie ma albo zgłosiła błąd. Nowe faktury są nadal odnotowywane, ale nie zostaną wysłane ponownie, kiedy telefon zacznie działać. Sprawdź aplikację Home Assistant Companion na telefonie albo wybierz inny telefon w opcjach integracji. To zgłoszenie zniknie po pierwszym powiadomieniu wysłanym bez błędu."
+    },
+    "account_blocked": {
+      "title": "KSeF odmawia dostępu dla {entry_title}",
+      "description": "KSeF odpowiedział, że dostęp dla tej firmy lub osoby jest zablokowany, więc sprawdzanie dla {entry_title} zostało zatrzymane. Sprawdź konto w Aplikacji Podatnika KSeF. Gdy sprawa zostanie wyjaśniona, przeładuj wpis integracji, żeby wznowić sprawdzanie."
+    }
+  },
+  "common": {
+    "notification_title_invoice": "Nowa faktura kosztowa",
+    "notification_title_correction": "Nowa faktura korygująca",
+    "notification_title_combined": "Nowe faktury kosztowe: {count}",
+    "notification_more": "jeszcze {count}",
+    "notification_combined_more": "… i jeszcze {count}",
+    "notification_seller_nip": "NIP {nip}",
+    "field_seller_name": "Sprzedawca",
+    "field_seller_nip": "NIP sprzedawcy",
+    "field_invoice_number": "Numer faktury",
+    "field_gross_amount": "Brutto",
+    "field_net_amount": "Netto",
+    "field_vat_amount": "VAT",
+    "field_issue_date": "Data wystawienia",
+    "field_due_date": "Termin płatności",
+    "field_payment_form": "Forma płatności",
+    "field_bank_account": "Nr rachunku",
+    "field_line_items": "Pozycje",
+    "field_invoice_type": "Rodzaj faktury",
+    "field_ksef_number": "Numer KSeF",
+    "payment_form_1": "Gotówka",
+    "payment_form_2": "Karta",
+    "payment_form_3": "Bon",
+    "payment_form_4": "Czek",
+    "payment_form_5": "Kredyt",
+    "payment_form_6": "Przelew",
+    "payment_form_7": "Płatność mobilna",
+    "invoice_type_vat": "Faktura VAT",
+    "invoice_type_zal": "Faktura zaliczkowa",
+    "invoice_type_kor": "Faktura korygująca",
+    "invoice_type_roz": "Faktura rozliczeniowa",
+    "invoice_type_upr": "Faktura uproszczona",
+    "invoice_type_korzal": "Korekta faktury zaliczkowej",
+    "invoice_type_korroz": "Korekta faktury rozliczeniowej",
+    "invoice_type_vatpef": "Faktura PEF",
+    "invoice_type_vatpefsp": "Faktura PEF wyspecjalizowana",
+    "invoice_type_korpef": "Korekta faktury PEF",
+    "invoice_type_vatrr": "Faktura VAT RR",
+    "invoice_type_korvatrr": "Korekta faktury VAT RR"
+  }
+}

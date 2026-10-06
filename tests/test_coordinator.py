@@ -769,17 +769,30 @@ async def test_a_download_rate_limit_defers_the_rest_of_the_check_without_reques
 # --- language and several entries -------------------------------------------------------------
 
 
-async def test_polish_locale_formats_amounts_and_dates(
+async def test_a_polish_home_assistant_sends_a_polish_notification(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory, world: World, pushes: list
 ) -> None:
-    """Polish texts arrive in phase 7; until then the labels fall back to English."""
+    """The notification follows Home Assistant's language, through `translations/pl.json`."""
     hass.config.language = "pl"
     await setup(hass)
     world.add(2)
     await advance(hass, freezer, INTERVAL)
 
-    assert "Gross: 123,00 PLN" in pushes[0].data["message"]
-    assert "Due date: 20.10.2026" in pushes[0].data["message"]
+    assert pushes[0].data["title"] == "Nowa faktura kosztowa"
+    assert "Brutto: 123,00 PLN" in pushes[0].data["message"]
+    assert "Termin płatności: 20.10.2026" in pushes[0].data["message"]
+
+
+async def test_a_language_without_a_translation_falls_back_to_english(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, world: World, pushes: list
+) -> None:
+    hass.config.language = "de"
+    await setup(hass)
+    world.add(2)
+    await advance(hass, freezer, INTERVAL)
+
+    assert pushes[0].data["title"] == "New cost invoice"
+    assert "Due date: 2026-10-20" in pushes[0].data["message"]
 
 
 async def test_the_title_names_the_entry_when_there_are_several(

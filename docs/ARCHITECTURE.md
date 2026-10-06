@@ -28,7 +28,8 @@ custom_components/ksef_notification/
 │                        #   KSeF session on unload; deletes the store on entry removal
 ├── const.py             # domain, config/option keys, environments, defaults, bounds, constants
 ├── manifest.json        # domain, version, config_flow, iot_class cloud_polling, no requirements
-├── strings.json         # + translations/en.json, translations/pl.json (phase 7)
+├── strings.json         # base texts; translations/en.json (= strings.json), translations/pl.json
+├── brand/               # icon and logo served by Home Assistant (docs/BRANDING.md)
 ├── config_flow.py       # wizard (access → notification → behaviour), options flow, reauth flow
 ├── coordinator.py       # KsefCoordinator(DataUpdateCoordinator): one cycle = the data flow below
 ├── storage.py           # TrackerStore: TrackerState ⇄ HA Store (JSON), save after every push
@@ -589,7 +590,9 @@ Public contracts from 1.0.0 on. Exact names, states and payload schemas are in
 - **Texts** (titles, labels, payment forms, invoice types, combined message) live under the
   `common` key of `strings.json` with prefixes `notification_`, `field_`, `payment_form_`,
   `invoice_type_` — `common` is the top-level key hassfest accepts for prose that belongs to no
-  form and no entity (verified in Walk the dog).
+  form and no entity (verified in Walk the dog). The notifier reads them in Home Assistant's
+  server language (`hass.config.language`) over English, so a missing translation falls back
+  key by key. Which texts follow which language: [CONFIG.md](CONFIG.md#languages).
 
 ---
 

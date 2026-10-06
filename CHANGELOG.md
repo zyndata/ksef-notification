@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Polish translation of everything the integration shows: the setup wizard, options,
+  re-authentication, errors, entities, repair notices and the notifications themselves. In
+  Polish the integration is called "Powiadomienia KSeF". Notifications follow Home Assistant's
+  language; amounts and dates use Polish formatting when it is Polish.
+- An icon and logo of its own (an invoice sheet with a bell), shipped inside the integration so
+  Home Assistant shows them without any extra setup. They deliberately do not use the KSeF or
+  Ministry of Finance logo.
 - The integration now works end to end. Every 15 minutes (or the chosen interval) it asks KSeF
   for new cost invoices and sends each one to the chosen phone with the selected fields — one
   notification per invoice, or one summary when more than three arrive at once. The first check

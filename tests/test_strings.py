@@ -3,17 +3,23 @@
 A missing key is invisible in Python and shows up in the frontend as a raw
 `ksef_notification::config::…` placeholder, so the checks are structural: step ids, error
 keys, abort reasons and selector translation keys are read out of the source, not restated
-here. Phase 7 adds the Polish file and its parity checks.
+here.
+
+hassfest validates only `strings.json` and `translations/en.json` of a custom integration;
+the parity checks at the end of this file are the only check `translations/pl.json` gets.
 """
 
 from __future__ import annotations
 
 import ast
 import json
+import string
 from pathlib import Path
 
+import pytest
+
 from custom_components.ksef_notification import const
-from custom_components.ksef_notification.const import ENVIRONMENTS
+from custom_components.ksef_notification.const import ENVIRONMENTS, INTEGRATION_NAME
 from custom_components.ksef_notification.coordinator import Outcome
 from custom_components.ksef_notification.core.fields import FIELD_KEYS
 
@@ -206,3 +212,80 @@ def test_every_repair_issue_has_a_title_and_description() -> None:
         assert STRINGS["issues"][key]["description"]
     assert "{service}" in STRINGS["issues"]["notify_service_missing"]["description"]
     assert "{entry_title}" in STRINGS["issues"]["account_blocked"]["title"]
+
+
+# --- translations (phase 7) -------------------------------------------------------------------
+
+#: Every language shipped beyond the base file.
+TRANSLATED = ("pl",)
+
+POLISH_TITLE = "Powiadomienia KSeF"
+
+#: Texts that are the same word in Polish: an abbreviation, a code, or the environment's name.
+SAME_IN_POLISH = {
+    "selector.environment.options.test",
+    "entity.sensor.last_invoice.state_attributes.vat_amount.name",
+    "entity.sensor.last_check.state_attributes.outcome.state.ok",
+    "common.notification_seller_nip",
+    "common.field_vat_amount",
+}
+
+
+def _leaves(node: dict, prefix: str = "") -> dict[str, str]:
+    """Dotted path → text, so a missing key is reported by its path."""
+    leaves: dict[str, str] = {}
+    for key, value in node.items():
+        path = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            leaves.update(_leaves(value, path))
+        else:
+            leaves[path] = value
+    return leaves
+
+
+def _placeholders(text: str) -> set[str]:
+    return {field for _, field, _, _ in string.Formatter().parse(text) if field}
+
+
+def _language(code: str) -> dict[str, str]:
+    path = COMPONENT / "translations" / f"{code}.json"
+    return _leaves(json.loads(path.read_text(encoding="utf-8")))
+
+
+ENGLISH = _leaves(STRINGS)
+
+
+def test_the_base_file_names_the_integration() -> None:
+    """The root `title` is what a translation can override; the base repeats the manifest."""
+    assert STRINGS["title"] == INTEGRATION_NAME
+
+
+@pytest.mark.parametrize("code", TRANSLATED)
+def test_a_translation_has_every_key(code: str) -> None:
+    """A key missing from a translation shows the user a raw identifier or English."""
+    assert set(_language(code)) == set(ENGLISH)
+
+
+@pytest.mark.parametrize("code", TRANSLATED)
+def test_a_translation_fills_every_key(code: str) -> None:
+    assert [path for path, text in _language(code).items() if not text.strip()] == []
+
+
+@pytest.mark.parametrize("code", TRANSLATED)
+def test_a_translation_keeps_every_placeholder(code: str) -> None:
+    """A dropped `{slot}` leaves the value out; a renamed one reaches the phone as `{slot}`."""
+    mismatched = {
+        path: (_placeholders(ENGLISH[path]), _placeholders(text))
+        for path, text in _language(code).items()
+        if path in ENGLISH and _placeholders(ENGLISH[path]) != _placeholders(text)
+    }
+    assert mismatched == {}
+
+
+def test_polish_is_not_a_copy_of_english() -> None:
+    copied = {path for path, text in _language("pl").items() if ENGLISH.get(path) == text}
+    assert copied == SAME_IN_POLISH
+
+
+def test_polish_uses_the_localized_title() -> None:
+    assert _language("pl")["title"] == POLISH_TITLE

@@ -96,7 +96,7 @@ are relative to the root `Faktura` and matched by local name.
 | 7 | `issue_date` | Issue date / Data wystawienia | metadata | `issueDate` | | no | `20.10.2026` (pl), `2026-10-20` (en) |
 | 8 | `due_date` | Due date / Termin płatności | XML | `Fa/Platnosc/TerminPlatnosci/Termin` | ✔ | yes | Earliest date, " (+n more)" for instalments; FA(3) `TerminOpis` (`Ilosc Jednostka — ZdarzeniePoczatkowe`) or FA(2) free text when there is no date |
 | 9 | `payment_form` | Payment form / Forma płatności | XML | `Fa/Platnosc/FormaPlatnosci` (code 1–7), or `Fa/Platnosc/OpisPlatnosci` when `PlatnoscInna = 1` | | yes | Translated label of the code (cash, card, voucher, cheque, credit, transfer, mobile); `OpisPlatnosci` verbatim. Direct child of `Platnosc` only — not the one inside `ZaplataCzesciowa` |
-| 10 | `bank_account` | Bank account / Rachunek | XML | `Fa/Platnosc/RachunekBankowy/NrRB` | | yes | Grouped in fours (`12 3456 7890 …`, `PL12 3456 …`); the first account, " (+n more)" for others. Never `RachunekBankowyFaktora` |
+| 10 | `bank_account` | Bank account / Nr rachunku | XML | `Fa/Platnosc/RachunekBankowy/NrRB` | | yes | Grouped in fours (`12 3456 7890 …`, `PL12 3456 …`); the first account, " (+n more)" for others. Never `RachunekBankowyFaktora` |
 | 11 | `line_items` | Items / Pozycje | XML | `Fa/FaWiersz` (count), `Fa/FaWiersz/P_7` (description) | | yes | **Both:** `3: Item A; Item B; Item C`, up to 3 descriptions of ≤ 60 characters, then `; +n more`. Rows with `StanPrzed = 1` (correction "before" rows) are not counted |
 | 12 | `invoice_type` | Invoice type / Rodzaj faktury | metadata | `invoiceType` | | no | Translated label per value: `Vat`, `Zal`, `Kor`, `Roz`, `Upr`, `KorZal`, `KorRoz`, `VatPef`, `VatPefSp`, `KorPef`, `VatRr`, `KorVatRr` |
 | 13 | `ksef_number` | KSeF number / Numer KSeF | metadata | `ksefNumber` | | no | Verbatim |
@@ -126,7 +126,7 @@ own title ("New correction invoice"). Invoices where the company is only a third
 
 | Part | Content |
 |---|---|
-| Title | "New cost invoice" / "Nowa faktura kosztowa"; "New correction invoice" for corrections; " · *entry title*" appended when more than one entry exists |
+| Title | "New cost invoice" / "Nowa faktura kosztowa"; "New correction invoice" / "Nowa faktura korygująca" for corrections; " · *entry title*" appended when more than one entry exists |
 | Message | The selected fields, one per line, as above |
 | `data.tag` | `ksef_<hash>` per invoice; `ksef_combined_<entry_id>` for a combined message |
 | `data.group` | `ksef_notification` |
@@ -134,8 +134,8 @@ own title ("New correction invoice"). Invoices where the company is only a third
 | `data.clickAction`, `data.url` | `entityId:<last-invoice sensor>` — a tap opens the sensor |
 
 **Up to 3 new invoices** in one check: one notification each, oldest first. **4 or more:** one
-combined notification — title "*N* new cost invoices", one line per invoice
-(`Seller — gross amount`), at most 10 lines, then "… and *M* more".
+combined notification — title "*N* new cost invoices" ("Nowe faktury kosztowe: *N*"), one line
+per invoice (`Seller — gross amount`), at most 10 lines, then "… and *M* more" ("… i jeszcze *M*").
 
 Nothing historical is ever notified: the first check after setup, and the first check after the
 switch is turned back on, only take note of what is already in KSeF. Invoices that arrive while
@@ -257,6 +257,23 @@ recorder:
 ```
 
 Excluding `call_service` stops recording every service call, not only this integration's.
+
+## Languages
+
+English and Polish. The integration's name is "KSeF Notification" and, in Polish,
+"Powiadomienia KSeF".
+
+| Text | Language |
+|---|---|
+| Wizard, options, re-authentication, errors, entity and attribute names, outcome states, repair issues, *Check now* refusals | The language of the Home Assistant user looking at it, as for any integration |
+| The notification's title and labels, payment forms, invoice types | **Home Assistant's server language** (Settings → System → General) — a push has no viewer when it is built. English for any language without a translation |
+| Amounts and dates in the notification | Polish rules (`1 234,56 PLN`, `20.10.2026`) when that language is Polish, otherwise `1,234.56 PLN`, `2026-10-20` |
+| Seller names, item and payment descriptions, invoice numbers | Verbatim from the invoice — never translated |
+| Entry and device name (`KSeF <nip>`), `manifest.json` name, brand images | Not translatable |
+| Event payload, attribute keys and raw attribute values, entity IDs | Identifiers — English in every language |
+
+Polish phrases that contain a count are worded so they need no plural form ("Nowe faktury
+kosztowe: 5", "jeszcze 2").
 
 ## Config entry data shape
 
