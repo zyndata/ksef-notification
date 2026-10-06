@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "KSeF Notification",
+        "description": "The setup wizard arrives in a later development phase."
+      }
+    },
+    "abort": {
+      "not_implemented": "The setup wizard is not implemented yet — it arrives in a later development phase."
+    }
+  }
+}

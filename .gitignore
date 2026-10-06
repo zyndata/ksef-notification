@@ -11,7 +11,7 @@ htmlcov/
 .venv/
 venv/
 
-# Machine/user secrets — never committed (see CLAUDE.md, secrets discipline)
+# Machine/user secrets — never committed
 .env
 
 # Real invoices must never reach the repository, not even by accident

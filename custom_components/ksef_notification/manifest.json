@@ -1,0 +1,14 @@
+{
+  "domain": "ksef_notification",
+  "name": "KSeF Notification",
+  "codeowners": [
+    "@zyndata"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/zyndata/ksef-notification",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/zyndata/ksef-notification/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,44 @@
+# Tool configuration only — this repo is a HA custom integration, not a Python package.
+
+[tool.ruff]
+# 3.13, not the 3.14 the dev environment runs: shipped code has to parse one release
+# below the minimum Home Assistant, and the formatter is what put 3.14-only `except`
+# syntax into two modules in the first place. See tests/test_syntax_floor.py.
+target-version = "py313"
+line-length = 100
+# Don't reformat Python code blocks inside the docs — their comment alignment is deliberate
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = [
+  "A",     # builtins shadowing
+  "ASYNC", # async pitfalls (blocking calls in the event loop)
+  "B",     # bugbear
+  "C4",    # comprehensions
+  "DTZ",   # naive datetimes — KSeF reads a naive timestamp as Warsaw time
+  "E",     # pycodestyle errors
+  "F",     # pyflakes
+  "I",     # import sorting
+  "N",     # naming
+  "PERF",  # performance
+  "PIE",
+  "PL",    # pylint
+  "PTH",   # pathlib only — project rule
+  "RET",
+  "RUF",
+  "SIM",
+  "T20",   # no print in integration code
+  "UP",    # pyupgrade
+  "W",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Task-runner scripts talk to the developer on stdout
+"scripts/*" = ["T20"]
+# Tests assert against literal expected values (that is the point of a fixture test),
+# and pytest injects fixtures as positional parameters.
+"tests/*" = ["PLR2004", "PLR0913", "PLR0917", "SLF001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

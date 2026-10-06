@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/zyndata/ksef-notification#readme
+    about: Installation, the KSeF token and its permission, and configuration.
+  - name: How the integration uses KSeF
+    url: https://github.com/zyndata/ksef-notification/blob/main/docs/KSEF_API.md
+    about: Environments, authentication, request limits and how often KSeF is asked.

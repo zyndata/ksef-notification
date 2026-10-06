@@ -1,0 +1,86 @@
+"""Constants for the KSeF Notification integration.
+
+Values fixed by the phase 0 research (docs/KSEF_API.md) and the phase 1 architecture
+(docs/ARCHITECTURE.md); option keys name the options documented in docs/CONFIG.md. Names
+in capitals match the ones those documents use.
+"""
+
+from __future__ import annotations
+
+from datetime import timedelta
+from typing import Final
+
+DOMAIN: Final = "ksef_notification"
+INTEGRATION_NAME: Final = "KSeF Notification"
+
+# Config entry data — fixed at setup (docs/CONFIG.md § Entry data)
+CONF_ENVIRONMENT: Final = "environment"
+CONF_NIP: Final = "nip"
+CONF_TOKEN: Final = "token"
+
+# Config entry options — editable later (docs/CONFIG.md § Entry options)
+CONF_NOTIFY_SERVICE: Final = "notify_service"
+CONF_FIELDS: Final = "fields"
+CONF_CHECK_INTERVAL_MIN: Final = "check_interval_min"
+
+# KSeF environments (docs/KSEF_API.md § Environments)
+ENV_PROD: Final = "prod"
+ENV_DEMO: Final = "demo"
+ENV_TEST: Final = "test"
+ENVIRONMENTS: Final = (ENV_PROD, ENV_DEMO, ENV_TEST)
+DEFAULT_ENVIRONMENT: Final = ENV_PROD
+API_BASE_URLS: Final[dict[str, str]] = {
+    ENV_PROD: "https://api.ksef.mf.gov.pl/v2",
+    ENV_DEMO: "https://api-demo.ksef.mf.gov.pl/v2",
+    ENV_TEST: "https://api-test.ksef.mf.gov.pl/v2",
+}
+
+# Check interval, minutes (docs/ARCHITECTURE.md § Coordinator scheduling)
+DEFAULT_CHECK_INTERVAL_MIN: Final = 15
+MIN_CHECK_INTERVAL_MIN: Final = 15
+MAX_CHECK_INTERVAL_MIN: Final = 1440
+CHECK_INTERVAL_STEP_MIN: Final = 5
+
+# Default field selection, in the fixed message order (docs/CONFIG.md § Selectable fields)
+DEFAULT_FIELDS: Final = ("seller_name", "invoice_number", "gross_amount", "due_date")
+
+# New-invoice detection (docs/ARCHITECTURE.md § New-invoice detection, § First run)
+OVERLAP: Final = timedelta(seconds=60)
+PAGE_SIZE: Final = 250
+MAX_PAGES: Final = 3
+MAX_DEFERRALS: Final = 2
+HWM_FALLBACK: Final = timedelta(hours=1)
+SEEN_MAX: Final = 1000
+MAX_CATCH_UP: Final = timedelta(days=90)
+BASELINE_WINDOW: Final = timedelta(hours=2)
+
+# Persistence (docs/ARCHITECTURE.md § What is persisted)
+STORAGE_VERSION: Final = 1
+STORAGE_KEY_PREFIX: Final = DOMAIN
+
+# Tokens (docs/ARCHITECTURE.md § Token lifecycle)
+TOKEN_MARGIN: Final = timedelta(seconds=60)
+AUTH_POLL_TIMEOUT: Final = timedelta(seconds=30)
+
+# Scheduling and rate limits (docs/ARCHITECTURE.md § Coordinator scheduling)
+MIN_QUERY_GAP: Final = timedelta(minutes=10)
+RETRY_AFTER_MARGIN: Final = timedelta(seconds=5)
+XML_FETCH_GAP: Final = timedelta(milliseconds=250)
+
+# Several invoices and message shape (docs/ARCHITECTURE.md § Several invoices at once,
+# § Message formatting)
+COMBINE_THRESHOLD: Final = 3
+COMBINED_MAX_LINES: Final = 10
+BODY_MAX: Final = 1000
+SELLER_NAME_MAX: Final = 80
+SELLER_TEXT_MAX: Final = 60
+LINE_ITEMS_SHOWN: Final = 3
+
+# XML safety bounds (docs/ARCHITECTURE.md § XML safety)
+MAX_XML_BYTES: Final = 4 * 1024 * 1024
+XML_MAX_DEPTH: Final = 64
+XML_MAX_TEXT: Final = 4 * 1024
+XML_CHUNK_BYTES: Final = 64 * 1024
+
+# Event fired once per new invoice (payload in docs/CONFIG.md § Event payload)
+EVENT_INVOICE: Final = "ksef_notification_invoice"

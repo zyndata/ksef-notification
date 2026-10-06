@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re-)publish, e.g. v0.8.0"
+        required: true
+
+# Creating the GitHub release is the only write this repo's CI does.
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish the GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          # The changelog section is read from the tagged commit, not from main.
+          fetch-depth: 0
+
+      - name: Read the version out of the manifest
+        id: version
+        run: echo "value=$(python3 scripts/release.py --print-version)" >> "$GITHUB_OUTPUT"
+
+      # HACS and Home Assistant show `manifest.json`'s version, the release page shows the
+      # tag. They are the same number or the user sees two different versions of one install.
+      - name: Check the tag matches the manifest
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          if [ "$tag" != "v${{ steps.version.outputs.value }}" ]; then
+            echo "::error::tag $tag does not match manifest version ${{ steps.version.outputs.value }}"
+            exit 1
+          fi
+
+      - name: Build the release notes from CHANGELOG.md
+        run: python3 scripts/release.py --notes > release-notes.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          gh release create "$tag" \
+            --title "KSeF Notification ${{ steps.version.outputs.value }}" \
+            --notes-file release-notes.md \
+            --verify-tag

@@ -1,0 +1,15 @@
+version: 2
+
+updates:
+  # Only GitHub Actions is automated. Python pins in requirements-dev.txt are updated by hand:
+  # pytest must match the version pytest-homeassistant-custom-component requires, and the ruff
+  # pin is mirrored in .pre-commit-config.yaml — both pairs have to move together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

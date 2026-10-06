@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in the integration behaves incorrectly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        **Issues are public.** Never post a KSeF token, a NIP, a company or person name, an
+        invoice number, an amount, a bank account number or a Home Assistant URL — not even
+        partially. Replace each one with an invented value before posting.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Integration version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.9.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: KSeF environment
+      options:
+        - Production
+        - Demo
+        - Test
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: >
+        Enable debug logging for `custom_components.ksef_notification` and paste the relevant
+        lines. Remove tokens, NIPs, names, invoice numbers, amounts and URLs before posting.
+      render: text
+  - type: checkboxes
+    id: scrubbed
+    attributes:
+      label: Confirmation
+      options:
+        - label: >
+            I removed every token, NIP, name, invoice number, amount, bank account and URL from
+            everything above.
+          required: true

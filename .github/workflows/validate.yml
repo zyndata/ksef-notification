@@ -1,0 +1,42 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # hassfest and HACS rules change upstream without this repo changing — catch it early.
+  schedule:
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hassfest:
+    name: hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # Temporary, each with the phase that removes it:
+          #   brands              — no icon yet; it ships inside the integration in phase 7.
+          #   hacsjson, manifest  — while the repository is private, the action reads files
+          #                         through the GitHub API and gets nothing back, so both
+          #                         parse as None. Dropped when it goes public in phase 9.
+          #                         hassfest validates manifest.json in the job above, and
+          #                         pre-commit's check-json parses hacs.json.
+          ignore: brands hacsjson integration_manifest

@@ -1,0 +1,7 @@
+# Pinned dev dependencies — install via `python scripts/setup.py` (uses uv, Python 3.14).
+# pytest is pinned to the exact version pytest-homeassistant-custom-component requires;
+# bump the two together (phcc tracks Home Assistant releases; 0.13.367 → homeassistant 2026.9.4).
+pre-commit==4.6.2
+pytest==9.0.3
+pytest-homeassistant-custom-component==0.13.367
+ruff==0.16.10
