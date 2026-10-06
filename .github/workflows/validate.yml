@@ -32,8 +32,3 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Temporary, dropped when the repository goes public in phase 9: while it is
-          # private, the action reads files through the GitHub API and gets nothing back,
-          # so both parse as None. hassfest validates manifest.json in the job above, and
-          # pre-commit's check-json parses hacs.json.
-          ignore: hacsjson integration_manifest

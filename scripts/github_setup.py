@@ -137,6 +137,12 @@ def main() -> int:
         ["api", "--method", "PUT", f"repos/{REPO}/automated-security-fixes"],
         label="Dependabot security updates",
     )
+    # SECURITY.md sends reporters to "Report a vulnerability", which exists only when this is on.
+    gh(
+        ["api", "--method", "PUT", f"repos/{REPO}/private-vulnerability-reporting"],
+        label="Private vulnerability reporting",
+        optional=True,
+    )
 
     gh(
         [

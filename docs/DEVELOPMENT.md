@@ -150,8 +150,7 @@ the repository instead — this is also the closest thing to how users install i
 
 HACS installs the newest release and shows its version number. To test an unreleased commit,
 pick **Redownload → show all versions → main** — HACS then names the install by its commit
-hash. Do not count on this route while the repository is still private; use one of the local
-routes below until it is public.
+hash.
 
 ### Local config folder (a container or Core install on the same machine)
 
@@ -223,9 +222,7 @@ beta versions, so the update would silently not appear.
 Every push to `main` and every pull request runs two workflows:
 
 - **Validate** — `hassfest` (Home Assistant manifest and translation checks) and HACS
-  validation, also weekly so upstream rule changes show up without a push. While the
-  repository is private, HACS validation ignores three checks — see the comment in
-  `.github/workflows/validate.yml` for which ones and when each goes.
+  validation (no check ignored), also weekly so upstream rule changes show up without a push.
 - **CI** — `scripts/setup.py` + `scripts/lint.py` + `scripts/test.py`, i.e. exactly what you
   run locally.
 
