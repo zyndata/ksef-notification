@@ -121,9 +121,9 @@ KSeF number. JSON bodies are capped at `MAX_JSON_BYTES` = 4 MB, XML at `MAX_XML_
 | Exception | Raised for | Coordinator reaction |
 |---|---|---|
 | `KsefError` | base class | — |
-| `KsefAuthError(reason)` | `reason` ∈ `token_invalid` (450 token-related, 21301 "token revoked" at redeem, 400 21405 at `ksef-token`), `no_permission` (415, or 403 on a protected call), `blocked` (470, 480, 400 21308, 403 with `reasonCode` `security-service-blocked`) | `token_invalid`/`no_permission` → `ConfigEntryAuthFailed` (reauth); `blocked` → repair issue, polling stops |
+| `KsefAuthError(reason)` | `reason` ∈ `token_invalid` (450 token-related, 21301 "token revoked" at redeem, 400 21405 at `ksef-token`), `no_permission` (415, or 403 on a protected call), `blocked` (470, 480, 400 21308, 403 with `reasonCode` `security-service-blocked`) | `token_invalid`/`no_permission` → re-authentication started, checks stop until the entry is reloaded; `blocked` → repair issue, checks stop until reloaded |
 | `KsefRateLimitError(retry_after_s, group)` | HTTP 429, or a call attempted while that group is still blocked | Next cycle no sooner than `retry_after_s` |
-| `KsefTemporaryError` | 5xx, timeouts, connection errors, redirects, auth status 425/460/500/550 or an unknown one, status poll not finished in time, any 400 not named in this table (e.g. 21405 on the metadata query) | Cycle fails (`UpdateFailed`), next cycle at the normal interval |
+| `KsefTemporaryError` | 5xx, timeouts, connection errors, redirects, auth status 425/460/500/550 or an unknown one, status poll not finished in time, any 400 not named in this table (e.g. 21405 on the metadata query) | The check fails (`outcome` `unavailable`), next one at the normal interval |
 | `KsefMalformedResponseError` | unparsable JSON, missing required keys, oversize body | As temporary |
 | `KsefInvoiceNotReadyError` | 400 code 21165 on the XML fetch | That invoice is deferred |
 | `KsefInvoiceNotFoundError` | 400 code 21164 on the XML fetch | That invoice is notified without XML fields |
@@ -339,9 +339,13 @@ that writes to its database. Both are handled deliberately:
   timestamp.
 - **The `ksef_notification_invoice` event** is recorded by the recorder like every event, and an
   integration cannot opt its events out. Its payload is limited to the fields the user selected
-  (see [CONFIG.md](CONFIG.md#event-payload)), and the README documents the one-line recorder
-  exclusion (`recorder: exclude: event_types: [ksef_notification_invoice]`) for users who want
-  nothing in the database.
+  (see [CONFIG.md](CONFIG.md#event-payload)), and the README documents the recorder exclusion
+  (`recorder: exclude: event_types: [ksef_notification_invoice, call_service]`) for users who
+  want nothing in the database.
+- **The `call_service` event** that Home Assistant fires for every service call is recorded as
+  well, and for the push it carries the notification's title and message (found in the phase 6
+  smoke test, 2026-10-06). It is Home Assistant's own event; the same exclusion covers it, at
+  the price of not recording any service call.
 - The **push itself** leaves Home Assistant through the companion app's push relay to Google or
   Apple and is kept in the phone's notification history. The README says so, because the
   notification is invoice data by definition.
@@ -405,18 +409,30 @@ best-effort, so the refresh token does not outlive the entry.
 | Maximum | **1 440 min** (24 h) | Allows a once-a-day digest. Any interval stays far inside the 100-day range |
 | Step | 5 min | |
 
-- **Interval** is the `check_interval_min` option; the coordinator's `update_interval`. The
-  first cycle runs right after setup (or after the switch turns on).
-- **Switch off:** `update_interval = None` and any pending refresh cancelled — **no timer, no
-  request, no token refresh.** The coordinator starts in the off position and the restored switch
+- **One timer.** The coordinator's `update_interval` stays `None`; it arms a single
+  point-in-time timer after every check, at `now + check_interval_min` (or later after a 429,
+  below). The switch, the back-off and a manual check all move that one timer. The entry's
+  "disable polling" system option is respected: no timer, but the button still works.
+- **Interval** is the `check_interval_min` option. The first cycle runs right after setup (or
+  after the switch turns on).
+- **Switch off:** the timer and any running check cancelled — **no timer, no request, no token
+  refresh.** The coordinator starts in the off position and the restored switch
   turns it on, so a Home Assistant started with notifications off makes no request at all.
   **Switch on again:** a baseline cycle runs at once. This works because turning the switch
   *off* clears the stored cursor; restoring the switch to *on* at start-up clears nothing, so a
   restart with notifications on catches up instead of re-baselining.
 - **Cycles never overlap.** A refresh requested while a cycle runs is dropped.
+- **A failed check is not an error to Home Assistant.** It never raises `UpdateFailed`: its
+  result is the last-check sensor's `outcome` (`ok`, `rate_limited`, `unavailable`,
+  `auth_failed`, `blocked`), and every entity stays available.
+- **Token refused** (`token_invalid`, `no_permission`): Home Assistant's re-authentication is
+  started and checks stop until the entry is reloaded — which re-authentication does. Polling a
+  refused token would only repeat a full authentication every interval. **Account blocked:**
+  the `account_blocked` repair issue; checks stop until the entry is reloaded.
 - **`MIN_QUERY_GAP` = 10 min between metadata queries that the timer did not start.** Applies to
-  the *Check now* button and to Home Assistant's own `homeassistant.update_entity` on any of the
-  entities. The button raises a translated error naming when the next check is possible; other
+  the *Check now* button, to Home Assistant's own `homeassistant.update_entity` on any of the
+  entities, and to turning the switch on (the baseline then runs once the gap has passed, so
+  off/on cannot get around it). The button raises a translated error naming when the next check is possible; other
   early requests are ignored and logged at debug level. A manual check resets the timer, so the
   worst case is one metadata query per 10 minutes (6 / h, 30 % of the limit).
 - **HTTP 429 on the metadata query:** no retry. The next cycle is scheduled at

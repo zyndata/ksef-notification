@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The integration now works end to end. Every 15 minutes (or the chosen interval) it asks KSeF
+  for new cost invoices and sends each one to the chosen phone with the selected fields — one
+  notification per invoice, or one summary when more than three arrive at once. The first check
+  after setup only takes note of what is already there; invoices that arrive while Home
+  Assistant is down are notified once it is back, and none is notified twice.
+- A *Notifications* switch (off means no contact with KSeF at all, and turning it back on does
+  not deliver what arrived meanwhile), a *Last invoice* sensor with the selected fields as
+  attributes (kept out of Home Assistant's history), a diagnostic *Last check* sensor that tells
+  "no new invoices" from "KSeF has not answered", and a *Check now* button limited to once per
+  10 minutes.
+- The `ksef_notification_invoice` event for automations, once per new invoice, with the
+  selected fields.
+- Failure handling: when KSeF asks to slow down, the next check waits as long as it says; an
+  outage only delays checks; a refused token starts re-authentication; a blocked account and a
+  missing or failing phone each raise a repair issue. An invoice whose details KSeF has not
+  prepared yet is retried twice, then notified without them.
+- A diagnostics download with the KSeF token, NIP, phone, tokens and every invoice value
+  redacted.
+- The tracker state is stored in Home Assistant's own storage and holds no invoice content;
+  the KSeF session is closed when the integration unloads or Home Assistant stops.
+- Tests for all of it against the scripted KSeF on a frozen clock, plus a test against a real
+  recorder that the invoice fields never reach Home Assistant's database.
+
 - The setup wizard in three steps — KSeF access, notification, behaviour. The first step
   checks the NIP (including its check digit) and then the KSeF token against KSeF itself, with
   one login and one small invoice query, and tells a wrong token, a token without the

@@ -94,3 +94,20 @@ XML_CHUNK_BYTES: Final = 64 * 1024
 
 # Event fired once per new invoice (payload in docs/CONFIG.md § Event payload)
 EVENT_INVOICE: Final = "ksef_notification_invoice"
+
+# Entities: translation key = unique-id suffix (docs/CONFIG.md § Entities)
+KEY_NOTIFICATIONS: Final = "notifications"
+KEY_LAST_INVOICE: Final = "last_invoice"
+KEY_LAST_CHECK: Final = "last_check"
+KEY_CHECK_NOW: Final = "check_now"
+
+# Push data (docs/CONFIG.md § Notification)
+NOTIFY_DOMAIN: Final = "notify"
+NOTIFICATION_GROUP: Final = "ksef_notification"
+NOTIFICATION_CHANNEL: Final = "KSeF"
+NOTIFICATION_TAG_PREFIX: Final = "ksef_"
+CLICK_ENTITY_PREFIX: Final = "entityId:"
+
+# Repair issues (docs/ARCHITECTURE.md § Outputs); the issue id adds the entry id
+ISSUE_NOTIFY_SERVICE_MISSING: Final = "notify_service_missing"
+ISSUE_ACCOUNT_BLOCKED: Final = "account_blocked"

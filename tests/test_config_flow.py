@@ -61,6 +61,21 @@ def fake_time_client(clock: FakeClock) -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def no_entry_setup() -> Iterator[None]:
+    """The flows are under test, not the integration: a created or reloaded entry sets up
+    without checking KSeF, so every request counted here is the flow's own."""
+
+    async def _ok(*_: Any) -> bool:
+        return True
+
+    with (
+        patch("custom_components.ksef_notification.async_setup_entry", _ok),
+        patch("custom_components.ksef_notification.async_unload_entry", _ok),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def phones(hass: HomeAssistant) -> None:
     """Two registered phones and one notify service that is not a phone."""
 

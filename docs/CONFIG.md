@@ -2,7 +2,7 @@
 
 > Option semantics, defaults and bounds were finalized in phase 1 (2026-10-06); the flows were
 > implemented in phase 5 (2026-10-06) and this document checked against them; the entities,
-> notification and event follow in phase 6.
+> notification, event, repair issues and diagnostics were implemented in phase 6 (2026-10-06).
 
 Each config entry watches the **cost invoices of one company in one KSeF environment**. Several
 entries may exist — different companies, or the same company in PROD and TEST — but a second
@@ -150,10 +150,14 @@ One service device per entry, named after the entry title.
 
 | Entity | Platform | What it is |
 |---|---|---|
-| Notifications | `switch` | Master switch. Off: no requests to KSeF at all, nothing notified, nothing queued. Default on; survives a restart. Turning it on again does not deliver what arrived meanwhile |
-| Last invoice | `sensor`, device class `timestamp` | When the most recently notified invoice was received in KSeF (`acquisitionDate`). `unknown` until the first invoice after a start |
+| Notifications | `switch`, configuration | Master switch. Off: no requests to KSeF at all, nothing notified, nothing queued. Default on; survives a restart. Turning it on again does not deliver what arrived meanwhile; within 10 minutes of the previous check, the first check waits until those 10 minutes have passed |
+| Last invoice | `sensor`, device class `timestamp` | When the most recently notified invoice was received in KSeF (`acquisitionDate`; its storage date if KSeF left that out). `unknown` until the first invoice after a start |
 | Last check | `sensor`, diagnostic, device class `timestamp` | When KSeF last answered a check successfully |
-| Check now | `button` | Checks immediately. Refused, with a message naming the earliest time, if a check ran less than 10 minutes ago |
+| Check now | `button` | Checks immediately. Refused with a message if a check ran less than 10 minutes ago (naming the earliest time), while notifications are off, or while checks are stopped by a token or account problem |
+
+Every entity stays available when a check fails; the last-check sensor's `outcome` says what
+happened. `homeassistant.update_entity` on any of them is a check too, subject to the same
+10 minutes (an early one is ignored).
 
 ### Last invoice — attributes
 
@@ -167,12 +171,37 @@ database through it.
 
 | Attribute | Type | Meaning |
 |---|---|---|
-| `outcome` | `ok` \| `rate_limited` \| `unavailable` \| `auth_failed` \| `blocked` \| `disabled` | Result of the most recent attempt |
+| `outcome` | `ok` \| `rate_limited` \| `unavailable` \| `auth_failed` \| `blocked` \| `disabled` \| `null` | Result of the most recent attempt; `null` before the first check after a start. After `auth_failed` and `blocked` no further check runs until the entry is reloaded (re-authentication reloads it) |
 | `last_attempt` | ISO-8601 UTC | When the most recent attempt ran, successful or not |
 | `next_check` | ISO-8601 UTC \| `null` | When the next scheduled check runs; `null` while the switch is off |
 | `new_invoices` | int | New invoices found by the last successful check |
 | `metadata_requests_last_hour` | int | Metadata queries sent in the last 60 minutes (limit 20) |
 | `download_requests_last_hour` | int | Invoice downloads in the last 60 minutes (limit 64) |
+
+`last_attempt`, `next_check` and the two counters are not written to Home Assistant's history:
+they change with every check without meaning anything on their own.
+
+The counters are this entry's own requests. KSeF counts per company and internet connection, so
+another program polling the same company from the same connection shares the same limits.
+
+## Repair issues
+
+| Issue | Raised when | Cleared |
+|---|---|---|
+| `notify_service_missing` | The phone's notify service is not registered or the push failed. The invoice still counts as handled and its event fires with `notified: false` | By the next successful push, or when the entry is reloaded |
+| `account_blocked` | KSeF answers that access for the company or person is blocked (470, 480, 21308, 403 `security-service-blocked`). Checks stop | When the entry is reloaded; raised again at once if KSeF still refuses |
+
+A refused or insufficient token does not raise an issue; Home Assistant's re-authentication
+flow asks for a new token instead.
+
+## Diagnostics
+
+The config entry's diagnostics download shows the options, the environment, whether polling is
+disabled, the tracker's cursor and the number of remembered and deferred invoices, the last
+check's outcome and times, the request counters, and for the last invoice only whether its XML
+was read and its form code. **Redacted:** the KSeF token, the NIP, the entry title and unique
+id (both contain the NIP), the phone's notify service (often a person's name). Never included:
+access or refresh tokens, hashes, any invoice value.
 
 ## Event payload
 
@@ -215,14 +244,19 @@ first check takes note of. Times are ISO-8601 UTC.
 Keys and values are identifiers and stay English in every language.
 
 **The recorder stores events.** Home Assistant writes every event to its database and an
-integration cannot exempt its own. Users who want no invoice data in that database add:
+integration cannot exempt its own. Besides this event, Home Assistant's own `call_service`
+event for the push contains the notification's title and message. Users who want no invoice
+data in that database add:
 
 ```yaml
 recorder:
   exclude:
     event_types:
       - ksef_notification_invoice
+      - call_service
 ```
+
+Excluding `call_service` stops recording every service call, not only this integration's.
 
 ## Config entry data shape
 

@@ -6,17 +6,25 @@ written by hand to the shape of a real KSeF response, never a recorded one.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from functools import partial
+from unittest.mock import patch
 
 import aiohttp
 import pytest
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.ksef_notification.client import Clock, KsefClient
 from custom_components.ksef_notification.const import ENV_TEST
 
-from .ksef_fake import KSEF_TOKEN, NIP, FakeClock, FakeKsef
+from .ha_setup import HaClock
+from .ksef_fake import KSEF_TOKEN, NIP, START, FakeClock, FakeKsef, signing_material
+
+# Built now, before any test freezes time: cryptography's certificate builder refuses
+# freezegun's datetime class.
+signing_material()
 
 
 @pytest.fixture(autouse=True)
@@ -41,6 +49,18 @@ async def session(
 @pytest.fixture
 def ksef(aioclient_mock: AiohttpClientMocker, clock: FakeClock) -> FakeKsef:
     return FakeKsef(aioclient_mock, clock)
+
+
+@pytest.fixture
+def ha_ksef(
+    aioclient_mock: AiohttpClientMocker, freezer: FrozenDateTimeFactory
+) -> Iterator[FakeKsef]:
+    """The scripted KSeF for the integration as Home Assistant sets it up, on HA's frozen clock."""
+    freezer.move_to(START)
+    clock = HaClock()
+    factory = partial(KsefClient, clock=Clock(clock.utcnow, clock.monotonic, clock.sleep))
+    with patch("custom_components.ksef_notification.KsefClient", factory):
+        yield FakeKsef(aioclient_mock, clock)
 
 
 @pytest.fixture

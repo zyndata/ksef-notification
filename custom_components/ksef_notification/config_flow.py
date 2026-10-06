@@ -53,12 +53,12 @@ from .const import (
     ENVIRONMENTS,
     MAX_CHECK_INTERVAL_MIN,
     MIN_CHECK_INTERVAL_MIN,
+    NOTIFY_DOMAIN,
 )
 from .core.fields import FIELD_KEYS, ordered
 
 _LOGGER = logging.getLogger(__name__)
 
-NOTIFY_DOMAIN = "notify"
 PHONE_SERVICE_PREFIX = "mobile_app_"
 _PHONE_SERVICE = re.compile(rf"{PHONE_SERVICE_PREFIX}[a-z0-9_]+")
 

@@ -94,15 +94,20 @@ the event payload.
   number or NIP. Access tokens are kept in memory only.
 - **Stored by Home Assistant:** the KSeF token in the config entry, like any integration's
   credentials. Home Assistant's recorder also stores every event, including
-  `ksef_notification_invoice` with the fields you selected. To keep invoice data out of the
-  database, exclude it:
+  `ksef_notification_invoice` with the fields you selected, and the `call_service` event Home
+  Assistant itself fires for every service call — for the notification, that one contains its
+  title and text. To keep invoice data out of the database, exclude both:
 
   ```yaml
   recorder:
     exclude:
       event_types:
         - ksef_notification_invoice
+        - call_service
   ```
+
+  Excluding `call_service` drops the record of every service call, not only this
+  integration's; Home Assistant offers no narrower way.
 
 - **The notification itself** travels through the Companion app's push relay and Google's or
   Apple's push service, and stays in your phone's notification history — it is invoice data by

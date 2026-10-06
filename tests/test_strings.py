@@ -14,6 +14,7 @@ from pathlib import Path
 
 from custom_components.ksef_notification import const
 from custom_components.ksef_notification.const import ENVIRONMENTS
+from custom_components.ksef_notification.coordinator import Outcome
 from custom_components.ksef_notification.core.fields import FIELD_KEYS
 
 COMPONENT = Path(__file__).parents[1] / "custom_components" / "ksef_notification"
@@ -155,3 +156,53 @@ def test_every_selector_option_has_a_label() -> None:
 
 def test_reauth_description_uses_only_the_placeholders_the_flow_passes() -> None:
     assert "{entry_title}" in STRINGS["config"]["step"]["reauth_confirm"]["description"]
+
+
+# --- entities, exceptions and repair issues (phase 6) -----------------------------------------
+
+PLATFORM_MODULES = ("switch", "sensor", "button")
+
+
+def _constants_used(module: Path, prefix: str) -> set[str]:
+    """Values of the `const` names starting with `prefix` that a module refers to."""
+    tree = ast.parse(module.read_text(encoding="utf-8"))
+    names = {
+        node.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and node.id.startswith(prefix)
+    }
+    return {getattr(const, name) for name in names}
+
+
+def test_every_entity_has_a_name() -> None:
+    for platform in PLATFORM_MODULES:
+        keys = _constants_used(COMPONENT / f"{platform}.py", "KEY_")
+        assert keys, platform
+        assert set(STRINGS["entity"][platform]) == keys, platform
+        for key in keys:
+            assert STRINGS["entity"][platform][key]["name"], (platform, key)
+    assert set(STRINGS["entity"]) == set(PLATFORM_MODULES)
+
+
+def test_every_outcome_has_a_label() -> None:
+    states = STRINGS["entity"]["sensor"]["last_check"]["state_attributes"]["outcome"]["state"]
+    assert set(states) == {outcome.value for outcome in Outcome}
+
+
+def test_every_exception_raised_has_a_message() -> None:
+    raised = _keyword_literals(
+        "translation_key", ast.parse((COMPONENT / "coordinator.py").read_text(encoding="utf-8"))
+    )
+    assert raised == {"disabled", "halted", "too_soon"}
+    assert set(STRINGS["exceptions"]) == raised
+    assert "{time}" in STRINGS["exceptions"]["too_soon"]["message"]
+
+
+def test_every_repair_issue_has_a_title_and_description() -> None:
+    issues = {value for name, value in vars(const).items() if name.startswith("ISSUE_")}
+    assert set(STRINGS["issues"]) == issues
+    for key in issues:
+        assert STRINGS["issues"][key]["title"]
+        assert STRINGS["issues"][key]["description"]
+    assert "{service}" in STRINGS["issues"]["notify_service_missing"]["description"]
+    assert "{entry_title}" in STRINGS["issues"]["account_blocked"]["title"]

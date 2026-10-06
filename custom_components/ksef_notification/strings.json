@@ -122,6 +122,119 @@
       }
     }
   },
+  "entity": {
+    "switch": {
+      "notifications": {
+        "name": "Notifications"
+      }
+    },
+    "sensor": {
+      "last_invoice": {
+        "name": "Last invoice",
+        "state_attributes": {
+          "ksef_number": {
+            "name": "KSeF number"
+          },
+          "currency": {
+            "name": "Currency"
+          },
+          "seller_name": {
+            "name": "Seller"
+          },
+          "seller_nip": {
+            "name": "Seller NIP"
+          },
+          "invoice_number": {
+            "name": "Invoice number"
+          },
+          "gross_amount": {
+            "name": "Gross"
+          },
+          "net_amount": {
+            "name": "Net"
+          },
+          "vat_amount": {
+            "name": "VAT"
+          },
+          "issue_date": {
+            "name": "Issue date"
+          },
+          "due_date": {
+            "name": "Due date"
+          },
+          "payment_form": {
+            "name": "Payment form"
+          },
+          "bank_account": {
+            "name": "Bank account"
+          },
+          "line_items": {
+            "name": "Items"
+          },
+          "invoice_type": {
+            "name": "Invoice type"
+          }
+        }
+      },
+      "last_check": {
+        "name": "Last check",
+        "state_attributes": {
+          "outcome": {
+            "name": "Outcome",
+            "state": {
+              "ok": "OK",
+              "rate_limited": "Rate limited by KSeF",
+              "unavailable": "KSeF unavailable",
+              "auth_failed": "Token refused",
+              "blocked": "Access blocked",
+              "disabled": "Notifications off"
+            }
+          },
+          "last_attempt": {
+            "name": "Last attempt"
+          },
+          "next_check": {
+            "name": "Next check"
+          },
+          "new_invoices": {
+            "name": "New invoices"
+          },
+          "metadata_requests_last_hour": {
+            "name": "Invoice list requests in the last hour"
+          },
+          "download_requests_last_hour": {
+            "name": "Invoice downloads in the last hour"
+          }
+        }
+      }
+    },
+    "button": {
+      "check_now": {
+        "name": "Check now"
+      }
+    }
+  },
+  "exceptions": {
+    "disabled": {
+      "message": "Notifications are switched off. Turn them on to check KSeF."
+    },
+    "halted": {
+      "message": "Checks are stopped until the KSeF access problem is fixed. See the repair or re-authentication notice."
+    },
+    "too_soon": {
+      "message": "KSeF was checked less than 10 minutes ago. The next manual check is possible at {time}."
+    }
+  },
+  "issues": {
+    "notify_service_missing": {
+      "title": "The phone for KSeF notifications is not reachable",
+      "description": "{entry_title} could not send a notification through {service}: the service is missing or failed. New invoices are still recorded, but they are not sent again once the phone works. Check the Home Assistant Companion app on the phone, or choose another phone in the integration's options. This notice disappears after the next notification that is sent successfully."
+    },
+    "account_blocked": {
+      "title": "KSeF refuses access for {entry_title}",
+      "description": "KSeF answered that access for this company or person is blocked, so checks for {entry_title} have stopped. Check the account in the KSeF taxpayer app. When it is resolved, reload the integration entry to start checking again."
+    }
+  },
   "common": {
     "notification_title_invoice": "New cost invoice",
     "notification_title_correction": "New correction invoice",
