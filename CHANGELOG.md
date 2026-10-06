@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-06
+
 The first release. KSeF Notification watches KSeF, the Polish national e-invoice system, for new
 cost invoices of your company and sends each one to your phone.
 
@@ -97,4 +99,5 @@ yet"*.
   default selection and rendering, the notification, the entities (including a *Check now*
   button) and the `ksef_notification_invoice` event payload.
 
-[Unreleased]: https://github.com/zyndata/ksef-notification/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/zyndata/ksef-notification/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/zyndata/ksef-notification/releases/tag/v1.0.0
