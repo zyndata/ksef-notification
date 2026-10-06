@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The setup wizard in three steps — KSeF access, notification, behaviour. The first step
+  checks the NIP (including its check digit) and then the KSeF token against KSeF itself, with
+  one login and one small invoice query, and tells a wrong token, a token without the
+  InvoiceRead permission, a blocked account, KSeF asking to slow down and an unreachable KSeF
+  apart. The same company can be added once per KSeF environment; a duplicate is refused before
+  anything is sent to KSeF. The second step offers the registered Companion-app phones and the
+  13 invoice fields (four preselected); the third the check interval (15–1 440 minutes).
+- An options flow to change the phone, the fields and the interval later; the integration
+  reloads only when something actually changed.
+- A re-authentication flow for entering a new KSeF token when KSeF stops accepting the old one;
+  nothing already notified is notified again.
+- English texts for every step, field, error and choice of the flows.
+- Tests for all three flows against the scripted KSeF, including a check that the token never
+  appears in the log or on a form.
+
 - The decision core (`core/`), pure Python without Home Assistant: an invoice model built from
   KSeF's metadata in which every field may be missing; a hardened reader for the invoice XML
   (FA(2) and FA(3)) that refuses DTDs and entities, bounds size, depth and text, and picks

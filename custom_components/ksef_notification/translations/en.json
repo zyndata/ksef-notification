@@ -2,12 +2,124 @@
   "config": {
     "step": {
       "user": {
-        "title": "KSeF Notification",
-        "description": "The setup wizard arrives in a later development phase."
+        "title": "KSeF access",
+        "description": "Connect to KSeF with a KSeF token of the company whose cost invoices you want to be notified about. Generate the token in the KSeF taxpayer app of the same environment, with the **InvoiceRead** permission only. The token is checked against KSeF before it is saved.",
+        "data": {
+          "environment": "KSeF environment",
+          "nip": "Company NIP",
+          "token": "KSeF token"
+        },
+        "data_description": {
+          "environment": "Production for real invoices; TEST and DEMO are KSeF's environments for trying things out. A token works only in the environment where it was generated.",
+          "nip": "The company that receives the invoices. 10 digits; spaces and dashes are ignored.",
+          "token": "Stored in Home Assistant and sent only to KSeF, encrypted."
+        }
+      },
+      "notification": {
+        "title": "Notification",
+        "description": "Choose the phone to notify and what each notification shows. Fields marked as coming from the invoice itself (due date, payment form, bank account, items) make the integration download the invoice, one extra request to KSeF per new invoice.",
+        "data": {
+          "notify_service": "Phone to notify",
+          "fields": "Invoice fields in the notification"
+        },
+        "data_description": {
+          "notify_service": "A Home Assistant Companion app notify service (notify.mobile_app_…). You may type one that is not registered yet.",
+          "fields": "At least one. Fields always appear in a fixed order."
+        }
+      },
+      "behaviour": {
+        "title": "Behaviour",
+        "description": "How often to ask KSeF for new invoices. 15 minutes is the shortest interval KSeF's guidance for production use allows.",
+        "data": {
+          "check_interval_min": "Check interval"
+        },
+        "data_description": {
+          "check_interval_min": "Minutes between checks: 15 to 1440, in steps of 5."
+        }
+      },
+      "reauth_confirm": {
+        "title": "New KSeF token",
+        "description": "KSeF no longer accepts the token of {entry_title}. Generate a new KSeF token for the same company and environment, with the **InvoiceRead** permission, and enter it here. Invoices already notified will not be notified again.",
+        "data": {
+          "token": "KSeF token"
+        },
+        "data_description": {
+          "token": "Stored in Home Assistant and sent only to KSeF, encrypted."
+        }
       }
     },
+    "error": {
+      "invalid_nip": "This is not a valid NIP: it must have 10 digits and a correct check digit.",
+      "invalid_token": "KSeF rejected the token. It may be mistyped, revoked or inactive, generated in another KSeF environment, or generated for a different NIP.",
+      "no_permission": "The token works but lacks the InvoiceRead permission. Generate a token with InvoiceRead.",
+      "account_blocked": "KSeF refused access for this company or person (the context or the account is blocked). Check the account in the KSeF taxpayer app.",
+      "rate_limited": "KSeF asked to slow down (too many requests). Try again in a few minutes.",
+      "cannot_connect": "KSeF could not be reached or did not answer properly. Try again later.",
+      "unknown": "Unexpected error. Details are in the Home Assistant log.",
+      "no_fields": "Select at least one invoice field.",
+      "invalid_notify_service": "Not a phone notify service. Use a notify.mobile_app_… service, for example mobile_app_my_phone.",
+      "invalid_interval": "The interval must be a whole number of minutes in steps of 5."
+    },
     "abort": {
-      "not_implemented": "The setup wizard is not implemented yet — it arrives in a later development phase."
+      "already_configured": "This company is already set up for this KSeF environment.",
+      "reauth_successful": "The new KSeF token works and has been saved."
+    }
+  },
+  "options": {
+    "step": {
+      "notification": {
+        "title": "Notification",
+        "description": "Choose the phone to notify and what each notification shows. Fields marked as coming from the invoice itself (due date, payment form, bank account, items) make the integration download the invoice, one extra request to KSeF per new invoice.",
+        "data": {
+          "notify_service": "Phone to notify",
+          "fields": "Invoice fields in the notification"
+        },
+        "data_description": {
+          "notify_service": "A Home Assistant Companion app notify service (notify.mobile_app_…). You may type one that is not registered yet.",
+          "fields": "At least one. Fields always appear in a fixed order."
+        }
+      },
+      "behaviour": {
+        "title": "Behaviour",
+        "description": "How often to ask KSeF for new invoices. 15 minutes is the shortest interval KSeF's guidance for production use allows.",
+        "data": {
+          "check_interval_min": "Check interval"
+        },
+        "data_description": {
+          "check_interval_min": "Minutes between checks: 15 to 1440, in steps of 5."
+        }
+      }
+    },
+    "error": {
+      "no_fields": "Select at least one invoice field.",
+      "invalid_notify_service": "Not a phone notify service. Use a notify.mobile_app_… service, for example mobile_app_my_phone.",
+      "invalid_interval": "The interval must be a whole number of minutes in steps of 5."
+    }
+  },
+  "selector": {
+    "environment": {
+      "options": {
+        "prod": "Production",
+        "demo": "DEMO (pre-production)",
+        "test": "TEST"
+      }
+    },
+    "fields": {
+      "options": {
+        "seller_name": "Seller",
+        "seller_nip": "Seller NIP",
+        "invoice_number": "Invoice number",
+        "gross_amount": "Gross amount",
+        "net_amount": "Net amount",
+        "vat_amount": "VAT amount (always in PLN)",
+        "issue_date": "Issue date",
+        "due_date": "Due date (from the invoice)",
+        "payment_form": "Payment form (from the invoice)",
+        "bank_account": "Bank account (from the invoice)",
+        "line_items": "Items (from the invoice)",
+        "invoice_type": "Invoice type",
+        "ksef_number": "KSeF number"
+      }
     }
   },
   "common": {

@@ -1,13 +1,12 @@
-"""Skeleton tests: manifest sanity, config-entry setup/unload, the placeholder flow."""
+"""Skeleton tests: manifest sanity, config-entry setup/unload."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.ksef_notification.const import DOMAIN, INTEGRATION_NAME
@@ -44,11 +43,3 @@ async def test_setup_and_unload_entry(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.NOT_LOADED
-
-
-async def test_config_flow_aborts_until_the_wizard_exists(hass: HomeAssistant) -> None:
-    """No half-configured entry can be created before phase 5."""
-    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
-
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "not_implemented"

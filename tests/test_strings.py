@@ -1,9 +1,9 @@
 """Every string the integration can show has to exist, in every language file.
 
 A missing key is invisible in Python and shows up in the frontend as a raw
-`ksef_notification::config::…` placeholder, so the checks are structural: step ids and
-abort reasons are read out of the source, not restated here. Phase 5 adds the wizard's
-steps and errors, phase 7 the Polish file and its parity checks.
+`ksef_notification::config::…` placeholder, so the checks are structural: step ids, error
+keys, abort reasons and selector translation keys are read out of the source, not restated
+here. Phase 7 adds the Polish file and its parity checks.
 """
 
 from __future__ import annotations
@@ -12,29 +12,98 @@ import ast
 import json
 from pathlib import Path
 
+from custom_components.ksef_notification import const
+from custom_components.ksef_notification.const import ENVIRONMENTS
+from custom_components.ksef_notification.core.fields import FIELD_KEYS
+
 COMPONENT = Path(__file__).parents[1] / "custom_components" / "ksef_notification"
 CONFIG_FLOW = COMPONENT / "config_flow.py"
 STRINGS = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
+TREE = ast.parse(CONFIG_FLOW.read_text(encoding="utf-8"))
+
+CONFIG_FLOW_CLASS = "KsefNotificationConfigFlow"
+OPTIONS_FLOW_CLASS = "KsefNotificationOptionsFlow"
+#: Module-level functions shared by both flows; their errors must exist in both sections.
+SHARED_VALIDATORS = ("_validate_notification", "_validate_behaviour")
 
 
-def _string_literals(keyword: str) -> set[str]:
-    """Every literal passed as `keyword=` anywhere in config_flow.py."""
-    tree = ast.parse(CONFIG_FLOW.read_text(encoding="utf-8"))
+def _node(name: str) -> ast.AST:
+    return next(
+        node
+        for node in ast.walk(TREE)
+        if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name == name
+    )
+
+
+def _keyword_literals(keyword: str, root: ast.AST = TREE) -> set[str]:
+    """Every literal passed as `keyword=` under `root`."""
     return {
         node.value.value
-        for call in ast.walk(tree)
+        for call in ast.walk(root)
         if isinstance(call, ast.Call)
         for node in call.keywords
         if node.arg == keyword and isinstance(node.value, ast.Constant)
     }
 
 
-ABORT_REASONS = _string_literals("reason")
+def _error_literals(root: ast.AST) -> set[str]:
+    """Literals assigned as `errors[...] = "key"` under `root`."""
+    return {
+        node.value.value
+        for node in ast.walk(root)
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Constant)
+        and any(
+            isinstance(target, ast.Subscript)
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "errors"
+            for target in node.targets
+        )
+    }
+
+
+def _validation_errors() -> set[str]:
+    """What validate_access returns, including the auth-reason mapping."""
+    returned = {
+        node.value.value
+        for node in ast.walk(_node("validate_access"))
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Constant)
+        if isinstance(node.value.value, str)
+    }
+    mapping = next(
+        node.value
+        for node in TREE.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "_AUTH_ERRORS"
+    )
+    assert isinstance(mapping, ast.Dict)
+    returned |= {value.value for value in mapping.values if isinstance(value, ast.Constant)}
+    default = next(
+        call.args[1].value
+        for call in ast.walk(_node("validate_access"))
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Attribute)
+        and call.func.attr == "get"
+    )
+    return returned | {default}
+
+
+SHARED_ERRORS = set().union(*(_error_literals(_node(name)) for name in SHARED_VALIDATORS))
+CONFIG_ERRORS = _error_literals(_node(CONFIG_FLOW_CLASS)) | _validation_errors() | SHARED_ERRORS
+CONFIG_STEPS = _keyword_literals("step_id", _node(CONFIG_FLOW_CLASS))
+OPTIONS_STEPS = _keyword_literals("step_id", _node(OPTIONS_FLOW_CLASS))
+ABORT_REASONS = _keyword_literals("reason") | {"already_configured", "reauth_successful"}
 
 
 def test_the_source_scan_found_something() -> None:
     """Guard against an AST walk that silently matches nothing."""
-    assert ABORT_REASONS
+    assert {"user", "notification", "behaviour", "reauth_confirm"} == CONFIG_STEPS
+    assert {"notification", "behaviour"} == OPTIONS_STEPS
+    assert {"no_fields", "invalid_notify_service", "invalid_interval"} == SHARED_ERRORS
+    assert {"invalid_nip", "invalid_token", "no_permission", "account_blocked"} <= CONFIG_ERRORS
+    assert {"rate_limited", "cannot_connect", "unknown"} <= CONFIG_ERRORS
 
 
 def test_translations_match_strings() -> None:
@@ -44,11 +113,45 @@ def test_translations_match_strings() -> None:
     assert english == STRINGS
 
 
+def test_every_step_has_a_title_and_labels() -> None:
+    for section, steps in (("config", CONFIG_STEPS), ("options", OPTIONS_STEPS)):
+        for step in steps:
+            text = STRINGS[section]["step"][step]
+            assert text["title"], (section, step)
+            assert text["data"], (section, step)
+            assert set(text["data_description"]) <= set(text["data"]), (section, step)
+
+
+def test_no_step_text_is_left_without_a_step() -> None:
+    assert set(STRINGS["config"]["step"]) == CONFIG_STEPS
+    assert set(STRINGS["options"]["step"]) == OPTIONS_STEPS
+
+
+def test_every_error_has_a_message() -> None:
+    assert set(STRINGS["config"]["error"]) == CONFIG_ERRORS
+    assert set(STRINGS["options"]["error"]) == SHARED_ERRORS
+
+
 def test_every_abort_reason_has_a_message() -> None:
-    """An abort the flow can raise but cannot render shows the user a raw key."""
-    assert set(STRINGS["config"]["abort"]) >= ABORT_REASONS
+    """An abort the flow can raise but cannot render shows the user a raw key. The two
+    reasons Home Assistant's helpers raise for the flow are added by hand."""
+    assert set(STRINGS["config"]["abort"]) == ABORT_REASONS
 
 
-def test_the_user_step_is_labelled() -> None:
-    """hassfest rejects a strings file without `config.step`; the user step needs a title."""
-    assert STRINGS["config"]["step"]["user"]["title"]
+def test_every_selector_option_has_a_label() -> None:
+    names = {
+        node.value.id
+        for call in ast.walk(TREE)
+        if isinstance(call, ast.Call)
+        for node in call.keywords
+        if node.arg == "translation_key" and isinstance(node.value, ast.Name)
+    }
+    keys = _keyword_literals("translation_key") | {getattr(const, name) for name in names}
+
+    assert keys == set(STRINGS["selector"])
+    assert set(STRINGS["selector"]["environment"]["options"]) == set(ENVIRONMENTS)
+    assert set(STRINGS["selector"]["fields"]["options"]) == set(FIELD_KEYS)
+
+
+def test_reauth_description_uses_only_the_placeholders_the_flow_passes() -> None:
+    assert "{entry_title}" in STRINGS["config"]["step"]["reauth_confirm"]["description"]

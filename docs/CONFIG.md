@@ -1,8 +1,8 @@
 # Configuration
 
-> Option semantics, defaults and bounds were finalized in phase 1 (2026-10-06); the flows are
-> implemented in phase 5 and the entities, notification and event in phase 6. Where this
-> document and the code disagree after phase 5, the code is checked and this document updated.
+> Option semantics, defaults and bounds were finalized in phase 1 (2026-10-06); the flows were
+> implemented in phase 5 (2026-10-06) and this document checked against them; the entities,
+> notification and event follow in phase 6.
 
 Each config entry watches the **cost invoices of one company in one KSeF environment**. Several
 entries may exist — different companies, or the same company in PROD and TEST — but a second
@@ -13,28 +13,43 @@ entry for the same environment and NIP aborts with *"Already configured"*
 
 | # | Step id | What it asks |
 |---|---|---|
-| 1 | `user` | **KSeF access** — environment, the company's NIP, the KSeF token. On submit the integration authenticates and runs one metadata query; only success creates the entry. |
+| 1 | `user` | **KSeF access** — environment, the company's NIP, the KSeF token. On submit the NIP is checked, then the duplicate check runs, then the integration authenticates and runs one metadata query (`pageSize` 10, last hour); only success moves on. |
 | 2 | `notification` | **Notification** — the phone to notify, and which invoice fields the message carries. |
-| 3 | `behaviour` | **Behaviour** — how often to check. |
+| 3 | `behaviour` | **Behaviour** — how often to check. Creates the entry. |
 
-Step 1 reports each failure as its own error:
+Step 1 reports each failure as its own error. The first two are found without a request to
+KSeF; the duplicate check (abort `already_configured`) also runs before any request.
 
-| Error key | Cause |
-|---|---|
-| `invalid_nip` | Not 10 digits, or the checksum fails (weights 6 5 7 2 3 4 5 6 7, sum mod 11 = last digit) |
-| `invalid_token` | Authentication status 450 (token invalid, revoked, inactive, or not for this NIP), redeem 21301 "token revoked" |
-| `no_permission` | Status 415, or the metadata query answered 403 — the token lacks `InvoiceRead` |
-| `account_blocked` | Status 470 or 480 |
-| `rate_limited` | HTTP 429 |
-| `cannot_connect` | Network error, timeout, 5xx, status 500/550 |
-| `unknown` | Anything else (logged without the token) |
+| Error key | Field | Cause |
+|---|---|---|
+| `invalid_nip` | NIP | After removing spaces and dashes: not exactly 10 ASCII digits, or the checksum fails (weights 6 5 7 2 3 4 5 6 7 on the first nine digits, sum mod 11 must equal the tenth; a remainder of 10 is never valid) |
+| `invalid_token` | token / form | The token is blank (field); authentication status 450 (token invalid, revoked, inactive, or not for this NIP), redeem 21301 "token revoked", 400 21405 at `ksef-token` (form) |
+| `no_permission` | form | Status 415, or the metadata query answered 403 — the token lacks `InvoiceRead` |
+| `account_blocked` | form | Status 470 or 480, 400 21308, or 403 with `reasonCode` `security-service-blocked` |
+| `rate_limited` | form | HTTP 429 on any of the calls |
+| `cannot_connect` | form | Network error, timeout, 5xx, status 500/550, a response without the documented shape |
+| `unknown` | form | Anything else — logged with the exception type and where it was raised only, never its message |
 
-The session opened for validation is revoked immediately afterwards. The token is never logged
-and never part of an error message.
+After a failed attempt the form keeps the environment and NIP and empties the token. The
+session opened for validation is revoked right afterwards, successful or not. The token is
+never logged and never part of an error message or a form.
 
-**Options flow:** steps 2 and 3, same validation. Changing an option reloads the entry; the
-notified-invoice state is kept. **Re-authentication flow** (`reauth_confirm`): a new KSeF token
-for the same environment and NIP, validated like step 1; the state is kept.
+Steps 2 and 3 (and the options flow) report:
+
+| Error key | Field | Cause |
+|---|---|---|
+| `invalid_notify_service` | phone | After trimming and removing a `notify.` prefix, not `mobile_app_` followed by lowercase letters, digits or `_` |
+| `no_fields` | fields | No field selected |
+| `invalid_interval` | interval | Not a whole number of minutes in steps of 5. Values outside 15–1 440 are refused by the form itself |
+
+**Options flow:** steps 2 and 3, prefilled with the current options, same validation, no request
+to KSeF. The entry is reloaded only when an option actually changed; the notified-invoice state is
+kept either way. Environment, NIP and token are not in it.
+
+**Re-authentication flow** (`reauth_confirm`): asks for a new KSeF token only (the description
+names the entry), validates it against the entry's own environment and NIP exactly like step 1,
+then replaces `token` in `entry.data`, reloads the entry and ends with `reauth_successful`. A
+failure leaves the old token in place. Options and the notified-invoice state are kept.
 
 ## Options
 
@@ -50,9 +65,9 @@ for the same environment and NIP, validated like step 1; the state is kept.
 
 | Option | Key | Type | Default | Bounds | Notes |
 |---|---|---|---|---|---|
-| Phone to notify | `notify_service` | string | required | a `notify.mobile_app_*` service, stored without the `notify.` prefix | Registered services offered in a dropdown; a custom value is accepted (a phone not registered yet) |
+| Phone to notify | `notify_service` | string | required | `mobile_app_[a-z0-9_]+`, stored without the `notify.` prefix | Registered `notify.mobile_app_*` services offered in a dropdown; a custom value is accepted (a phone not registered yet) as long as it has that shape |
 | Invoice fields in the notification | `fields` | list of field keys | `seller_name`, `invoice_number`, `gross_amount`, `due_date` | at least 1 | See [Selectable invoice fields](#selectable-invoice-fields). Stored in the fixed order, whatever order they were ticked in |
-| Check interval | `check_interval_min` | int minutes | **15** | **15–1 440**, step 5 | 15 is both the default and the minimum: the official production guidance and the request budget ([ARCHITECTURE.md](ARCHITECTURE.md#coordinator-scheduling)) |
+| Check interval | `check_interval_min` | int minutes | **15** | **15–1 440**, step 5 (off-step values refused) | 15 is both the default and the minimum: the official production guidance and the request budget ([ARCHITECTURE.md](ARCHITECTURE.md#coordinator-scheduling)) |
 
 Not options, fixed in code (values and reasons in [ARCHITECTURE.md](ARCHITECTURE.md)): the
 combined-message threshold (4 invoices in one check), the minimum gap for a manual check
@@ -227,4 +242,6 @@ recorder:
 }
 ```
 
-Config entry version: **1**. Title: `KSeF <nip>` by default; the user can rename the entry.
+Config entry version: **1**. `unique_id`: `<environment>_<nip>`. Title: `KSeF <nip>` for
+production, `KSeF <nip> (TEST)` / `KSeF <nip> (DEMO)` otherwise, so the same company in two
+environments can be told apart; the user can rename the entry.
