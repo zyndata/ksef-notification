@@ -1,6 +1,6 @@
 # Architecture
 
-The design of the integration, as implemented in 1.0.0. Every decision is stated with its
+The design of the integration, as implemented in 1.1.0. Every decision is stated with its
 reason, so a change can be judged against it. Inputs: [KSEF_API.md](KSEF_API.md) (verified
 API facts, limits and the request budget) and [CONFIG.md](CONFIG.md) (options, selectable fields,
 outputs).

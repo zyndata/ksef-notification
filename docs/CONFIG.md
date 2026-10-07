@@ -1,6 +1,6 @@
 # Configuration
 
-> Checked against the implementation of version 1.0.0 (2026-10-06).
+> Checked against the implementation of version 1.1.0 (2026-10-07).
 
 Each config entry watches the **cost invoices of one company in one KSeF environment**. Several
 entries may exist — different companies, or the same company in PROD and TEST — but a second
